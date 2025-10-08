@@ -26,7 +26,6 @@ jobs:
         working-directory: backend
         run: npm ci
 
-      # wrangler-actionの`workingDirectory`パラメータを使ってデプロイ
       - name: Deploy
         uses: cloudflare/wrangler-action@v3
         with:
