@@ -1,0 +1,30 @@
+{
+	"name": "team2-project",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"lint": "biome lint",
+		"format": "biome format",
+		"check": "biome check",
+		"lint:fix": "biome lint --write",
+		"format:fix": "biome format --write",
+		"check:fix": "biome check --write"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/kameiryohei/advanced-project-team2.git"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"type": "commonjs",
+	"bugs": {
+		"url": "https://github.com/kameiryohei/advanced-project-team2/issues"
+	},
+	"homepage": "https://github.com/kameiryohei/advanced-project-team2#readme",
+	"devDependencies": {
+		"@biomejs/biome": "2.2.5"
+	}
+}
