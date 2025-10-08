@@ -21,7 +21,6 @@ jobs:
         with:
           node-version: "20"
 
-      # backend ディレクトリ内で依存をインストール (npm)
       - name: Install dependencies
         working-directory: backend
         run: npm ci
