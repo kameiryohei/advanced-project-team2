@@ -11,7 +11,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     name: Deploy frontend
-    # デプロイ状況をGitHubに連携するために権限を付与
     permissions:
       contents: read
       deployments: write
@@ -38,7 +37,7 @@ jobs:
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          apiToken: ${{ secrets.CLOUDFLARE_FRONTEND_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }} # このオプションは引き続き有効です
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
           command: pages deploy frontend/dist --project-name=advanced-project-team2
