@@ -26,3 +26,14 @@ npm install
 cd ..
 npm install
 ```     
+4. backendを起動
+```bash
+cd backend && npm run dev
+```
+![backend-image](image.png)
+
+5. frontendを起動(別ターミナル起動で)
+```bash
+cd frontend && npm run dev
+```
+![frontend-images](image-1.png)
