@@ -30,10 +30,10 @@ npm install
 ```bash
 cd backend && npm run dev
 ```
-![backend-image](image/image-1.png)
+![backend-image](image/image-2.png)
 
 5. frontendを起動(別ターミナル起動で)
 ```bash
 cd frontend && npm run dev
 ```
-![frontend-images](image/image-2.png)
+![frontend-images](image/image-1.png)
