@@ -3,10 +3,17 @@
 	"vcs": {
 		"enabled": false,
 		"clientKind": "git",
-		"useIgnoreFile": false
+		"useIgnoreFile": true
 	},
 	"files": {
-		"ignoreUnknown": true
+		"ignoreUnknown": true,
+		"includes": [
+			"**/*",
+			"!frontend/dist",
+			"!**/node_modules",
+			"!backend/.wrangler",
+			"!backend/dist"
+		]
 	},
 	"formatter": {
 		"enabled": true,
