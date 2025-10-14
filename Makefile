@@ -1,6 +1,7 @@
 setup/first:
 	make -C backend deps
 	make -C frontend deps
+	npm run install
 
 run/backend:
 	make -C backend start
