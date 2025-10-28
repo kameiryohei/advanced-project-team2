@@ -11,7 +11,7 @@
 		"lint:fix": "biome lint --write",
 		"format:fix": "biome format --write",
 		"check:fix": "biome check --write",
-		"db:init": "wrangler d1 execute advanced-project-team2 --local --file=schema.sql",
+		"db:init": "wrangler d1 execute advanced-project-team2 --local --file=db/schema.sql",
 		"db:migrate": "wrangler d1 migrations apply advanced-project-team2 --local",
 		"db:console": "wrangler d1 execute advanced-project-team2 --local --command"
 	},
