@@ -10,7 +10,10 @@
 		"check": "biome check",
 		"lint:fix": "biome lint --write",
 		"format:fix": "biome format --write",
-		"check:fix": "biome check --write"
+		"check:fix": "biome check --write",
+		"db:init": "wrangler d1 execute advanced-project-team2 --local --file=schema.sql",
+		"db:migrate": "wrangler d1 migrations apply advanced-project-team2 --local",
+		"db:console": "wrangler d1 execute advanced-project-team2 --local --command"
 	},
 	"dependencies": {
 		"hono": "^4.9.10"
