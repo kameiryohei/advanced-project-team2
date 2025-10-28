@@ -1,0 +1,250 @@
+"use client"
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { MapPin, Users, Wifi, WifiOff, AlertTriangle, CheckCircle } from "lucide-react"
+import { SyncStatus } from "@/components/sync-status"
+import { syncService } from "@/lib/sync-service"
+
+interface Shelter {
+  id: string
+  name: string
+  distance: string
+  status: "online" | "offline"
+  population: number
+  activeReports: number
+  urgentReports: number
+  lastUpdate: string
+}
+
+const mockShelters: Shelter[] = [
+  {
+    id: "1",
+    name: "避難所1",
+    distance: "10km",
+    status: "online",
+    population: 5,
+    activeReports: 3,
+    urgentReports: 1,
+    lastUpdate: "2025/9/9 15:30",
+  },
+  {
+    id: "2",
+    name: "避難所2",
+    distance: "15km",
+    status: "offline",
+    population: 10,
+    activeReports: 7,
+    urgentReports: 3,
+    lastUpdate: "2025/9/9 14:45",
+  },
+  {
+    id: "3",
+    name: "避難所3",
+    distance: "20km",
+    status: "offline",
+    population: 10,
+    activeReports: 2,
+    urgentReports: 0,
+    lastUpdate: "2025/9/9 13:20",
+  },
+]
+
+interface ShelterOverviewProps {
+  onShelterSelect: (shelterId: string) => void
+}
+
+export function ShelterOverview({ onShelterSelect }: ShelterOverviewProps) {
+  const [shelters, setShelters] = useState<Shelter[]>(mockShelters)
+
+  useEffect(() => {
+    const storedShelters = syncService.loadFromLocal("shelters")
+    if (storedShelters) {
+      setShelters(storedShelters)
+    }
+
+    syncService.onSyncComplete((syncData) => {
+      if (syncData.shelterStatus) {
+        setShelters(syncData.shelterStatus)
+      }
+    })
+  }, [])
+
+  useEffect(() => {
+    syncService.saveToLocal("shelters", shelters)
+  }, [shelters])
+
+  const totalShelters = shelters.length
+  const onlineShelters = shelters.filter((s) => s.status === "online").length
+  const totalPopulation = shelters.reduce((sum, s) => sum + s.population, 0)
+  const totalUrgentReports = shelters.reduce((sum, s) => sum + s.urgentReports, 0)
+
+  return (
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="text-center space-y-2">
+            <h1 className="text-3xl font-bold text-foreground">災害対策本部</h1>
+            <p className="text-muted-foreground">避難所管理システム - 中央集約サーバー</p>
+          </div>
+          <SyncStatus />
+        </div>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <MapPin className="h-5 w-5 text-primary" />
+                <div>
+                  <p className="text-sm text-muted-foreground">総避難所数</p>
+                  <p className="text-2xl font-bold">{totalShelters}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <Wifi className="h-5 w-5 text-success" />
+                <div>
+                  <p className="text-sm text-muted-foreground">オンライン</p>
+                  <p className="text-2xl font-bold text-success">{onlineShelters}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <Users className="h-5 w-5 text-info" />
+                <div>
+                  <p className="text-sm text-muted-foreground">総避難者数</p>
+                  <p className="text-2xl font-bold text-info">{totalPopulation}人</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <AlertTriangle className="h-5 w-5 text-danger" />
+                <div>
+                  <p className="text-sm text-muted-foreground">緊急報告</p>
+                  <p className="text-2xl font-bold text-danger">{totalUrgentReports}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Shelters Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <MapPin className="h-5 w-5" />
+              <span>避難所一覧</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-3 font-medium">避難所名</th>
+                    <th className="text-left p-3 font-medium">避難所までの距離</th>
+                    <th className="text-left p-3 font-medium">オンライン/オフライン</th>
+                    <th className="text-left p-3 font-medium">推定人数</th>
+                    <th className="text-left p-3 font-medium">報告状況</th>
+                    <th className="text-left p-3 font-medium">最終更新</th>
+                    <th className="text-left p-3 font-medium">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shelters.map((shelter) => (
+                    <tr
+                      key={shelter.id}
+                      className="border-b hover:bg-muted/50 cursor-pointer"
+                      onClick={() => onShelterSelect(shelter.id)}
+                    >
+                      <td className="p-3 font-medium">{shelter.name}</td>
+                      <td className="p-3">{shelter.distance}</td>
+                      <td className="p-3">
+                        <Badge
+                          variant={shelter.status === "online" ? "default" : "destructive"}
+                          className={
+                            shelter.status === "online"
+                              ? "bg-success text-success-foreground"
+                              : "bg-danger text-danger-foreground"
+                          }
+                        >
+                          {shelter.status === "online" ? (
+                            <>
+                              <Wifi className="h-3 w-3 mr-1" />
+                              オンライン
+                            </>
+                          ) : (
+                            <>
+                              <WifiOff className="h-3 w-3 mr-1" />
+                              オフライン
+                            </>
+                          )}
+                        </Badge>
+                      </td>
+                      <td className="p-3">{shelter.population}人</td>
+                      <td className="p-3">
+                        <div className="flex space-x-2">
+                          <Badge variant="outline" className="text-xs">
+                            報告: {shelter.activeReports}
+                          </Badge>
+                          {shelter.urgentReports > 0 && (
+                            <Badge variant="destructive" className="text-xs bg-danger text-danger-foreground">
+                              緊急: {shelter.urgentReports}
+                            </Badge>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-3 text-sm text-muted-foreground">{shelter.lastUpdate}</td>
+                      <td className="p-3">
+                        <Button
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onShelterSelect(shelter.id)
+                          }}
+                        >
+                          詳細表示
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions */}
+        <div className="flex flex-wrap gap-4 justify-center">
+          <Button variant="outline" className="flex items-center space-x-2 bg-transparent">
+            <CheckCircle className="h-4 w-4" />
+            <span>全避難所同期</span>
+          </Button>
+          <Button variant="outline" className="flex items-center space-x-2 bg-transparent">
+            <AlertTriangle className="h-4 w-4" />
+            <span>緊急報告一覧</span>
+          </Button>
+          <Button variant="outline" className="flex items-center space-x-2 bg-transparent">
+            <Users className="h-4 w-4" />
+            <span>避難者統計</span>
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
