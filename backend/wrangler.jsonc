@@ -2,7 +2,14 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "backend",
 	"main": "src/index.ts",
-	"compatibility_date": "2025-10-08"
+	"compatibility_date": "2025-10-08",
+	"d1_databases": [
+		{
+			"binding": "advanced_project_team2",
+			"database_name": "advanced-project-team2",
+			"database_id": "91e16945-8af9-4bbc-9d4f-a8eff4ada1d0"
+		}
+	]
 	// "compatibility_flags": [
 	//   "nodejs_compat"
 	// ],
