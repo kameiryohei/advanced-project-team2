@@ -13,6 +13,17 @@ export type ShelterPostSummary = {
 	comment_count: number;
 };
 
+export type ShelterDetails = {
+	id: number;
+	name: string;
+	address: string;
+	latitude: number;
+	longitude: number;
+	created_at: string;
+};
+
+
+
 const recentPostsByShelterQuery = `SELECT
 	p.id,
 	p.author_name,
@@ -39,6 +50,14 @@ export const countShelters = async (db: Database): Promise<number> => {
 		.all<ShelterCountRow>();
 
 	return results[0]?.shelterCount ?? 0;
+};
+
+export const fetchShelterDetails = async (db: Database, shelterId: number): Promise<ShelterDetails> => {
+	const { results } = await db
+		.prepare("SELECT * FROM shelters WHERE id = ?")
+		.bind(shelterId)
+		.all<ShelterDetails>();
+	return results[0];
 };
 
 export const fetchRecentPostsByShelter = async (
