@@ -48,7 +48,7 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 		const { latitude, longitude } = position.coords;
 		setCoords({ latitude, longitude });
 
-		const res = await fetch("http://localhost:3001/api/location", {
+		const res = await fetch("http://localhost:5173/api/location", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ latitude, longitude, timestamp: Date.now() }),
