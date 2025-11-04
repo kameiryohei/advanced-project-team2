@@ -404,13 +404,13 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 										></div>
 										<span>対応中</span>
 									</div>
-									<div className="flex items-center space-x-2">
+									{/* <div className="flex items-center space-x-2">
 										<div
 											className="w-3 h-3 rounded-full"
 											style={{ backgroundColor: "#3b82f6" }}
 										></div>
 										<span>監視中</span>
-									</div>
+									</div> */}
 									<div className="flex items-center space-x-2">
 										<div
 											className="w-3 h-3 rounded-full"
@@ -477,13 +477,13 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 										></div>
 										<span>対応中</span>
 									</div>
-									<div className="flex items-center space-x-2">
+									{/* <div className="flex items-center space-x-2">
 										<div
 											className="w-3 h-3 rounded-full"
 											style={{ backgroundColor: "#3b82f6" }}
 										></div>
 										<span>監視中</span>
-									</div>
+									</div> */}
 									<div className="flex items-center space-x-2">
 										<div
 											className="w-3 h-3 rounded-full"

@@ -74,8 +74,8 @@ export function ReportMap({ reports, onReportSelect }: ReportMapProps) {
 				return "未対応";
 			case "in-progress":
 				return "対応中";
-			case "monitoring":
-				return "監視中";
+			// case "monitoring":
+			// 	return "監視中";
 			case "resolved":
 				return "解決済み";
 			default:
