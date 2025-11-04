@@ -4,6 +4,7 @@ import { dbConnect } from "./db/database";
 import {
 	countShelters,
 	fetchRecentPostsByShelter,
+	fetchShelterDetails,
 	getShelterList,
 } from "./repositories/shelterRepository";
 
@@ -27,6 +28,22 @@ app.get("/db-check", async (c) => {
 	}
 });
 
+
+app.get("/shelters/:id", async (c) => {
+	const shelterId = Number.parseInt(c.req.param("id"), 10);
+
+	if (Number.isNaN(shelterId)) {
+		return c.json({ error: "shelterId must be a number" }, 400);
+	}
+
+	const db = dbConnect(c.env);
+
+	try {
+		const details = await fetchShelterDetails(db, shelterId);
+		return c.json(details);
+	} catch (error) {
+		console.error("D1 posts query failed", error);
+
 app.get("/db-getShelterList", async (c) => {
 	const db = dbConnect(c.env);
 
@@ -35,6 +52,7 @@ app.get("/db-getShelterList", async (c) => {
 		return c.json({ shelterList });
 	} catch (error) {
 		console.error("D1 query failed", error);
+
 		const message = error instanceof Error ? error.message : "Unknown error";
 		return c.json({ error: message }, 500);
 	}
