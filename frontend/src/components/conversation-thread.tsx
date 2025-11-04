@@ -197,6 +197,14 @@ export function ConversationThread({
 							</h4>
 							<p className="text-sm">{report.details}</p>
 						</div>
+
+						<div>
+							<h4 className="font-medium text-sm text-muted-foreground mb-2">
+								報告場所
+							</h4>
+							<ReportLocationMap report={report} />
+						</div>
+
 						<div className="flex gap-6 text-sm">
 							<div>
 								<span className="font-medium text-muted-foreground">
@@ -217,7 +225,7 @@ export function ConversationThread({
 				</CardContent>
 			</Card>
 
-			<Card>
+			{/* <Card>
 				<CardHeader>
 					<CardTitle className="flex items-center gap-2">
 						<MapPin className="h-5 w-5" />
@@ -227,7 +235,7 @@ export function ConversationThread({
 				<CardContent>
 					<ReportLocationMap report={report} />
 				</CardContent>
-			</Card>
+			</Card> */}
 
 			{/* Conversation Thread */}
 			<Card>
