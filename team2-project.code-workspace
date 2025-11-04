@@ -1,0 +1,43 @@
+{
+	"folders": [
+		{
+			"name": "Workspace",
+			"path": "."
+		},
+		{
+			"name": "Backend",
+			"path": "backend"
+		},
+		{
+			"name": "Frontend",
+			"path": "frontend"
+		}
+	],
+	"settings": {
+		"files.exclude": {
+			"**/node_modules": true,
+			"**/.wrangler": true,
+			"**/dist": true
+		},
+		"editor.defaultFormatter": "biomejs.biome",
+		"[javascript]": {
+			"editor.defaultFormatter": "biomejs.biome"
+		},
+		"[typescript]": {
+			"editor.defaultFormatter": "biomejs.biome"
+		},
+		"[typescriptreact]": {
+			"editor.defaultFormatter": "biomejs.biome"
+		},
+		"[json]": {
+			"editor.defaultFormatter": "biomejs.biome"
+		},
+		"typescript.tsserver.watchOptions": {
+			"watchFile": "useFsEvents",
+			"watchDirectory": "useFsEvents"
+		}
+	},
+	"extensions": {
+		"recommendations": ["hono.lsp", "biomejs.biome", "cloudflare.workers"]
+	}
+}
