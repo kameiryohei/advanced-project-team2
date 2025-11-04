@@ -9,7 +9,7 @@
 			"database_name": "advanced-project-team2",
 			"database_id": "91e16945-8af9-4bbc-9d4f-a8eff4ada1d0"
 		}
-	]
+	],
 	// "compatibility_flags": [
 	//   "nodejs_compat"
 	// ],
@@ -22,12 +22,13 @@
 	//     "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 	//   }
 	// ],
-	// "r2_buckets": [
-	//   {
-	//     "binding": "MY_BUCKET",
-	//     "bucket_name": "my-bucket"
-	//   }
-	// ],
+	"r2_buckets": [
+		{
+			"binding": "ASSET_BUCKET",
+			"bucket_name": "advanced-project-team2",
+			"preview_bucket_name": "advanced-project-team2-dev"
+		}
+	]
 	// "d1_databases": [
 	//   {
 	//     "binding": "MY_DB",
