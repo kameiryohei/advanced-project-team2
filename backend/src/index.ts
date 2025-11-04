@@ -43,6 +43,10 @@ app.get("/shelters/:id", async (c) => {
 		return c.json(details);
 	} catch (error) {
 		console.error("D1 posts query failed", error);
+		const message = error instanceof Error ? error.message : "Unknown error";
+		return c.json({ error: message }, 500);
+	}
+});
 
 app.get("/db-getShelterList", async (c) => {
 	const db = dbConnect(c.env);

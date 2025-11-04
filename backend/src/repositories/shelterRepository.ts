@@ -64,6 +64,7 @@ export const fetchShelterDetails = async (db: Database, shelterId: number): Prom
 		.bind(shelterId)
 		.all<ShelterDetails>();
 	return results[0];
+};
 
 export const getShelterList = async (db: Database): Promise<Shelter[]> => {
 	const { results } = await db
