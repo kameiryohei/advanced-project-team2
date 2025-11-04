@@ -1,6 +1,4 @@
-import type { Bindings } from "../db/database";
-
-type Database = Bindings["advanced_project_team2"];
+import type { Database } from "../db/database";
 
 type ShelterCountRow = {
 	shelterCount: number;
