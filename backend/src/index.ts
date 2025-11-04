@@ -4,6 +4,7 @@ import { dbConnect } from "./db/database";
 import {
 	countShelters,
 	fetchRecentPostsByShelter,
+	getShelterList,
 } from "./repositories/shelterRepository";
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -19,6 +20,19 @@ app.get("/db-check", async (c) => {
 	try {
 		const shelterCount = await countShelters(db);
 		return c.json({ shelterCount });
+	} catch (error) {
+		console.error("D1 query failed", error);
+		const message = error instanceof Error ? error.message : "Unknown error";
+		return c.json({ error: message }, 500);
+	}
+});
+
+app.get("/db-getShelterList", async (c) => {
+	const db = dbConnect(c.env);
+
+	try {
+		const shelterList = await getShelterList(db);
+		return c.json({ shelterList });
 	} catch (error) {
 		console.error("D1 query failed", error);
 		const message = error instanceof Error ? error.message : "Unknown error";
