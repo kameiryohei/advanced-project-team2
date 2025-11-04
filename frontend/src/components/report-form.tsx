@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Check } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { X, Upload, Calendar, MapPin, User, AlertTriangle } from "lucide-react"
 
@@ -28,6 +29,38 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
   })
 
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+/* 11/04 追加部分ここから */
+    // 状態管理
+  const [allowGps, setAllowGps] = useState(false);
+  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [gpsStatus, setGpsStatus] = useState("");
+
+  // GPS取得処理
+  const uploadLocation = async (position: GeolocationPosition) => {
+    const { latitude, longitude } = position.coords;
+    setCoords({ latitude, longitude });
+
+    const res = await fetch("http://localhost:3001/api/location", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ latitude, longitude, timestamp: Date.now() }),
+    });
+
+    setGpsStatus(res.ok ? "アップロード成功" : "アップロード失敗");
+  };
+
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      setGpsStatus("GPS非対応ブラウザです");
+      return;
+    }
+    setGpsStatus("取得中…");
+    navigator.geolocation.getCurrentPosition(uploadLocation, () => {
+      setGpsStatus("位置情報の取得に失敗しました");
+    });
+  };
+/* 11/04 追加部分ここまで */
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -118,6 +151,46 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
                 className="w-full"
               />
             </div>
+
+  
+            {/* Gps */}
+            <div className="space-y-2">
+              <Label htmlFor="address" className="flex items-center gap-2">
+                位置情報
+              </Label>
+              <Input
+                type="checkbox"
+                id="allowGps"
+                checked={allowGps}
+                onChange={(e) => setAllowGps(e.target.checked)}
+              />
+              <Label htmlFor="allowGps">位置情報の送信を許可する</Label>
+            </div>
+
+            {/* GpsButton */}
+            <div className="flex flex-col gap-2">
+              <Button
+                type="button"
+                disabled={!allowGps}
+                onClick={handleGetLocation}
+                className="w-fit"
+              >
+                現在地を取得
+              </Button>
+
+              {gpsStatus && (
+                <p className="text-sm text-gray-600">{gpsStatus}</p>
+              )}
+
+              {coords && (
+                <Input
+                  id="location"
+                  value={`緯度: ${coords.latitude}, 経度: ${coords.longitude}`}
+                  readOnly
+                />
+              )}
+            </div>
+
 
             {/* Details */}
             <div className="space-y-2">
