@@ -4,6 +4,11 @@ type ShelterCountRow = {
 	shelterCount: number;
 };
 
+interface Shelter {
+	id: number;
+	name: string;
+}
+
 export type ShelterPostSummary = {
 	id: string;
 	author_name: string;
@@ -52,12 +57,20 @@ export const countShelters = async (db: Database): Promise<number> => {
 	return results[0]?.shelterCount ?? 0;
 };
 
+
 export const fetchShelterDetails = async (db: Database, shelterId: number): Promise<ShelterDetails> => {
 	const { results } = await db
 		.prepare("SELECT * FROM shelters WHERE id = ?")
 		.bind(shelterId)
 		.all<ShelterDetails>();
 	return results[0];
+
+export const getShelterList = async (db: Database): Promise<Shelter[]> => {
+	const { results } = await db
+		.prepare("SELECT id, name FROM shelters;")
+		.all<Shelter>();
+	return results ?? [];
+ 
 };
 
 export const fetchRecentPostsByShelter = async (
