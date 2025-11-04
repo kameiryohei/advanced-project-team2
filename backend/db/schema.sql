@@ -1,5 +1,4 @@
--- 避難所テーブル
-CREATE TABLE shelters (
+CREATE TABLE IF NOT EXISTS shelters (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     address TEXT,
@@ -8,8 +7,7 @@ CREATE TABLE shelters (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- 投稿テーブル
-CREATE TABLE posts (
+CREATE TABLE IF NOT EXISTS posts (
     id TEXT PRIMARY KEY,
     author_name TEXT NOT NULL,
     shelter_id INTEGER NOT NULL REFERENCES shelters(id) ON DELETE RESTRICT,
@@ -18,11 +16,11 @@ CREATE TABLE posts (
     longitude REAL NOT NULL,
     is_synced INTEGER NOT NULL DEFAULT 0,
     posted_at DATETIME NOT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    isFreechat INTEGER NOT NULL DEFAULT 0
 );
 
--- メディアファイルテーブル
-CREATE TABLE media (
+CREATE TABLE IF NOT EXISTS media (
     id TEXT PRIMARY KEY,
     post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
     file_path TEXT NOT NULL,
@@ -31,8 +29,7 @@ CREATE TABLE media (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- コメントテーブル
-CREATE TABLE comments (
+CREATE TABLE IF NOT EXISTS comments (
     id TEXT PRIMARY KEY,
     post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE, -- どの投稿へのコメントか
     author_name TEXT NOT NULL, -- コメントした人の名前
@@ -40,14 +37,13 @@ CREATE TABLE comments (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- インデックス作成
-CREATE INDEX idx_posts_shelter_id ON posts(shelter_id);
-CREATE INDEX idx_media_post_id ON media(post_id);
-CREATE INDEX idx_comments_post_id ON comments(post_id); -- (新規追加) コメントを投稿IDですばやく引くためのインデックス
+CREATE INDEX IF NOT EXISTS idx_posts_shelter_id ON posts(shelter_id);
+CREATE INDEX IF NOT EXISTS idx_media_post_id ON media(post_id);
+CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id); -- (新規追加) コメントを投稿IDですばやく引くためのインデックス
 
 
 -- 1. 避難所テーブル
-INSERT INTO shelters (id, name, address, latitude, longitude, created_at) VALUES
+INSERT OR IGNORE INTO shelters (id, name, address, latitude, longitude, created_at) VALUES
 (1, 'A小学校 体育館', '名古屋市中区1-1-1', 35.1701, 136.9001, '2025-10-28 09:00:00'),
 (2, 'B中学校 武道場', '名古屋市中村区2-2-2', 35.1691, 136.8801, '2025-10-28 09:00:00'),
 (3, 'C公民館', '名古屋市東区3-3-3', 35.1801, 136.9201, '2025-10-28 09:00:00'),
@@ -60,20 +56,20 @@ INSERT INTO shelters (id, name, address, latitude, longitude, created_at) VALUES
 (10, 'J地区会館', '名古屋市南区10-10-10', 35.1101, 136.9201, '2025-10-28 09:00:00');
 
 -- 2. 投稿テーブル
-INSERT INTO posts (id, author_name, shelter_id, content, latitude, longitude, is_synced, posted_at, created_at) VALUES
-('a0000001-0000-0000-0000-000000000001', '佐藤', 1, 'A小学校、まだ余裕あります。水あります。', 35.1701, 136.9001, 0, '2025-10-28 10:00:00', '2025-10-28 10:00:00'),
-('a0000002-0000-0000-0000-000000000002', '鈴木', 2, 'B中学校、混雑してきました。毛布が足りません。', 35.1691, 136.8801, 0, '2025-10-28 10:05:00', '2025-10-28 10:05:00'),
-('a0000003-0000-0000-0000-000000000003', '高橋', 1, 'A小学校の体育館裏、土砂が崩れそうです。危険です。', 35.1702, 136.9002, 0, '2025-10-28 10:10:00', '2025-10-28 10:10:00'),
-('a0000004-0000-0000-0000-000000000004', '田中', 3, 'C公民館、ペット（犬）は入れますか？', 35.1801, 136.9201, 0, '2025-10-28 10:15:00', '2025-10-28 10:15:00'),
-('a0000005-0000-0000-0000-000000000005', '伊藤', 5, 'E福祉センター、食料の配布が始まりました。', 35.1401, 136.9301, 0, '2025-10-28 10:20:00', '2025-10-28 10:20:00'),
-('a0000006-0000-0000-0000-000000000006', '渡辺', 10, 'J地区会館の状況知りたいです。', 35.1101, 136.9201, 0, '2025-10-28 10:25:00', '2025-10-28 10:25:00'),
-('a0000007-0000-0000-0000-000000000007', '山本', 8, 'H生涯学習センター、Wi-Fi使えます。パスワードは「bousai」です。', 35.1401, 136.8701, 0, '2025-10-28 10:30:00', '2025-10-28 10:30:00'),
-('a0000008-0000-0000-0000-000000000008', '中村', 4, 'D大学、赤ちゃん用のミルクあります。必要な方どうぞ。', 35.1501, 136.9501, 0, '2025-10-28 10:35:00', '2025-10-28 10:35:00'),
-('a0000009-0000-0000-0000-000000000009', '小林', 2, 'B中学校、かなり寒いです。暖房ありません。', 35.1692, 136.8802, 0, '2025-10-28 10:40:00', '2025-10-28 10:40:00'),
-('a0000010-0000-0000-0000-000000000010', '加藤', 7, 'Gコミュニティセンター、電気が復旧しました！', 35.1201, 136.9101, 0, '2025-10-28 10:45:00', '2025-10-28 10:45:00');
+INSERT OR IGNORE INTO posts (id, author_name, shelter_id, content, latitude, longitude, is_synced, posted_at, created_at, isFreechat) VALUES
+('a0000001-0000-0000-0000-000000000001', '佐藤', 1, 'A小学校、まだ余裕あります。水あります。', 35.1701, 136.9001, 0, '2025-10-28 10:00:00', '2025-10-28 10:00:00', 0),
+('a0000002-0000-0000-0000-000000000002', '鈴木', 2, 'B中学校、混雑してきました。毛布が足りません。', 35.1691, 136.8801, 0, '2025-10-28 10:05:00', '2025-10-28 10:05:00', 0),
+('a0000003-0000-0000-0000-000000000003', '高橋', 1, 'A小学校の体育館裏、土砂が崩れそうです。危険です。', 35.1702, 136.9002, 0, '2025-10-28 10:10:00', '2025-10-28 10:10:00', 0),
+('a0000004-0000-0000-0000-000000000004', '田中', 3, 'C公民館、ペット（犬）は入れますか？', 35.1801, 136.9201, 0, '2025-10-28 10:15:00', '2025-10-28 10:15:00', 0),
+('a0000005-0000-0000-0000-000000000005', '伊藤', 5, 'E福祉センター、食料の配布が始まりました。', 35.1401, 136.9301, 0, '2025-10-28 10:20:00', '2025-10-28 10:20:00', 0),
+('a0000006-0000-0000-0000-000000000006', '渡辺', 10, 'J地区会館の状況知りたいです。', 35.1101, 136.9201, 0, '2025-10-28 10:25:00', '2025-10-28 10:25:00', 0),
+('a0000007-0000-0000-0000-000000000007', '山本', 8, 'H生涯学習センター、Wi-Fi使えます。パスワードは「bousai」です。', 35.1401, 136.8701, 0, '2025-10-28 10:30:00', '2025-10-28 10:30:00', 0),
+('a0000008-0000-0000-0000-000000000008', '中村', 4, 'D大学、赤ちゃん用のミルクあります。必要な方どうぞ。', 35.1501, 136.9501, 0, '2025-10-28 10:35:00', '2025-10-28 10:35:00', 0),
+('a0000009-0000-0000-0000-000000000009', '小林', 2, 'B中学校、かなり寒いです。暖房ありません。', 35.1692, 136.8802, 0, '2025-10-28 10:40:00', '2025-10-28 10:40:00', 0),
+('a0000010-0000-0000-0000-000000000010', '加藤', 7, 'Gコミュニティセンター、電気が復旧しました！', 35.1201, 136.9101, 0, '2025-10-28 10:45:00', '2025-10-28 10:45:00', 0);
 
 -- 3. メディアファイルテーブル
-INSERT INTO media (id, post_id, file_path, media_type, file_name, created_at) VALUES
+INSERT OR IGNORE INTO media (id, post_id, file_path, media_type, file_name, created_at) VALUES
 ('b0000001-0000-0000-0000-000000000001', 'a0000001-0000-0000-0000-000000000001', 'public/uploads/image_01.jpg', 'image/jpeg', 'A小学校の様子.jpg', '2025-10-28 10:00:10'),
 ('b0000002-0000-0000-0000-000000000002', 'a0000001-0000-0000-0000-000000000001', 'public/uploads/image_02.jpg', 'image/jpeg', '水の備蓄.jpg', '2025-10-28 10:00:20'),
 ('b0000003-0000-0000-0000-000000000003', 'a0000002-0000-0000-0000-000000000002', 'public/uploads/image_03.jpg', 'image/jpeg', '混雑状況.jpg', '2025-10-28 10:05:10'),
@@ -86,7 +82,7 @@ INSERT INTO media (id, post_id, file_path, media_type, file_name, created_at) VA
 ('b0000010-0000-0000-0000-000000000010', 'a0000010-0000-0000-0000-000000000010', 'public/uploads/image_09.jpg', 'image/jpeg', '電気がついた.jpg', '2025-10-28 10:45:10');
 
 -- 4. コメントテーブル
-INSERT INTO comments (id, post_id, author_name, content, created_at) VALUES
+INSERT OR IGNORE INTO comments (id, post_id, author_name, content, created_at) VALUES
 ('c0000001-0000-0000-0000-000000000001', 'a0000001-0000-0000-0000-000000000001', '伊藤', '情報ありがとうございます！今から向かいます。', '2025-10-28 11:00:00'),
 ('c0000002-0000-0000-0000-000000000002', 'a0000002-0000-0000-0000-000000000002', '加藤', '私もB中にいますが、本当に寒いです。子供が震えています。', '2025-10-28 11:01:00'),
 ('c0000003-0000-0000-0000-000000000003', 'a0000002-0000-0000-0000-000000000002', '佐藤', 'カイロなら少し持っています。どこにいますか？', '2025-10-28 11:05:00'),
