@@ -27,8 +27,6 @@ export type ShelterDetails = {
 	created_at: string;
 };
 
-
-
 const recentPostsByShelterQuery = `SELECT
 	p.id,
 	p.author_name,
@@ -57,8 +55,10 @@ export const countShelters = async (db: Database): Promise<number> => {
 	return results[0]?.shelterCount ?? 0;
 };
 
-
-export const fetchShelterDetails = async (db: Database, shelterId: number): Promise<ShelterDetails> => {
+export const fetchShelterDetails = async (
+	db: Database,
+	shelterId: number,
+): Promise<ShelterDetails> => {
 	const { results } = await db
 		.prepare("SELECT * FROM shelters WHERE id = ?")
 		.bind(shelterId)
@@ -71,7 +71,6 @@ export const getShelterList = async (db: Database): Promise<Shelter[]> => {
 		.prepare("SELECT id, name FROM shelters;")
 		.all<Shelter>();
 	return results ?? [];
- 
 };
 
 export const fetchRecentPostsByShelter = async (

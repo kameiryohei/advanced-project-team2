@@ -1,12 +1,7 @@
 import { Hono } from "hono";
 import type { Bindings } from "./db/database";
 import { dbConnect } from "./db/database";
-import {
-	countShelters,
-	fetchRecentPostsByShelter,
-	fetchShelterDetails,
-	getShelterList,
-} from "./repositories/shelterRepository";
+import { shelterRepository, videoRepository } from "./repositories";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -19,7 +14,7 @@ app.get("/db-check", async (c) => {
 	const db = dbConnect(c.env);
 
 	try {
-		const shelterCount = await countShelters(db);
+		const shelterCount = await shelterRepository.countShelters(db);
 		return c.json({ shelterCount });
 	} catch (error) {
 		console.error("D1 query failed", error);
@@ -38,7 +33,7 @@ app.get("/shelters/:id", async (c) => {
 	const db = dbConnect(c.env);
 
 	try {
-		const details = await fetchShelterDetails(db, shelterId);
+		const details = await shelterRepository.fetchShelterDetails(db, shelterId);
 		return c.json(details);
 	} catch (error) {
 		console.error("D1 posts query failed", error);
@@ -51,7 +46,7 @@ app.get("/db-getShelterList", async (c) => {
 	const db = dbConnect(c.env);
 
 	try {
-		const shelterList = await getShelterList(db);
+		const shelterList = await shelterRepository.getShelterList(db);
 		return c.json({ shelterList });
 	} catch (error) {
 		console.error("D1 query failed", error);
@@ -71,7 +66,8 @@ app.get("/shelters/:id/posts", async (c) => {
 	const db = dbConnect(c.env);
 
 	try {
-		const posts = await fetchRecentPostsByShelter(db, shelterId);
+		const posts =
+			await shelterRepository.fetchRecentPostsByShelter(db, shelterId);
 		return c.json({ shelterId, posts });
 	} catch (error) {
 		console.error("D1 posts query failed", error);
@@ -88,17 +84,19 @@ app.post("/r2/test-video/:key", async (c) => {
 
 	try {
 		const body = await c.req.arrayBuffer();
-
-		if (body.byteLength === 0) {
-			return c.json({ error: "Request body is empty" }, 400);
-		}
-
-		await bucket.put(key, body, {
-			httpMetadata: { contentType },
+		const uploadResult = await videoRepository.uploadVideo({
+			bucket,
+			key,
+			body,
+			contentType,
 		});
 
-		return c.json({ key, storedBytes: body.byteLength, contentType });
+		return c.json(uploadResult);
 	} catch (error) {
+		if (error instanceof videoRepository.EmptyVideoBodyError) {
+			return c.json({ error: error.message }, 400);
+		}
+
 		console.error("R2 video put failed", error);
 		const message = error instanceof Error ? error.message : "Unknown error";
 		return c.json({ error: message }, 500);
@@ -110,23 +108,13 @@ app.get("/r2/test-video/:key", async (c) => {
 	const bucket = c.env.ASSET_BUCKET;
 
 	try {
-		const object = await bucket.get(key);
-		if (!object) {
-			return c.json({ error: `Object not found for key ${key}` }, 404);
-		}
-
-		const body = await object.arrayBuffer();
-		const headers = new Headers();
-
-		object.writeHttpMetadata(headers);
-		headers.set(
-			"Content-Type",
-			object.httpMetadata?.contentType ?? "application/octet-stream",
-		);
-		headers.set("Content-Length", object.size.toString());
-
+		const { body, headers } = await videoRepository.getVideo({ bucket, key });
 		return c.newResponse(body, { headers });
 	} catch (error) {
+		if (error instanceof videoRepository.VideoNotFoundError) {
+			return c.json({ error: error.message }, 404);
+		}
+
 		console.error("R2 video get failed", error);
 		const message = error instanceof Error ? error.message : "Unknown error";
 		return c.json({ error: message }, 500);
