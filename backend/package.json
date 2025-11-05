@@ -19,6 +19,8 @@
 		"hono": "^4.9.10"
 	},
 	"devDependencies": {
+		"openapi-typescript": "^7.10.1",
+		"typescript": "^5.9.3",
 		"wrangler": "^4.4.0"
 	}
 }
