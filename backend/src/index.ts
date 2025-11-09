@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { components } from "../schema/schema";
+import type { components, paths } from "../schema/schema";
 import { createMiddleware } from "../middleware/middleware";
 import type { Bindings } from "./db/database";
 import { dbConnect } from "./db/database";
@@ -41,7 +41,8 @@ app.get("/shelters/:id", async (c) => {
 			return c.json(errorResponse, 404);
 		}
 
-		const response: components["schemas"]["ShelterDetails"] = details;
+		const response: paths["/shelters/{id}"]["get"]["responses"]["200"]["content"]["application/json"] =
+			details;
 		return c.json(response);
 	} catch (error) {
 		console.error("D1 posts query failed", error);
@@ -61,10 +62,11 @@ app.get("/shelters", async (c) => {
 			shelterRepository.getShelterList(db),
 			shelterRepository.countShelters(db),
 		]);
-		const response: components["schemas"]["ShelterListWithCountResponse"] = {
-			shelterList,
-			shelterCount,
-		};
+		const response: paths["/shelters"]["get"]["responses"]["200"]["content"]["application/json"] =
+			{
+				shelterList,
+				shelterCount,
+			};
 		return c.json(response);
 	} catch (error) {
 		console.error("D1 query failed", error);
@@ -94,10 +96,11 @@ app.get("/shelters/:id/posts", async (c) => {
 			db,
 			shelterId,
 		);
-		const response: components["schemas"]["ShelterPostsResponse"] = {
-			shelterId,
-			posts,
-		};
+		const response: paths["/shelters/{id}/posts"]["get"]["responses"]["200"]["content"]["application/json"] =
+			{
+				shelterId,
+				posts,
+			};
 		return c.json(response);
 	} catch (error) {
 		console.error("D1 posts query failed", error);
