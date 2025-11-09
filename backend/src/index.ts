@@ -38,7 +38,7 @@ app.get("/shelters/:id", async (c) => {
 			const errorResponse: components["schemas"]["ErrorResponse"] = {
 				error: "指定した避難所は見つかりませんでした",
 			};
-			return c.json(errorResponse, 500);
+			return c.json(errorResponse, 404);
 		}
 
 		const response: components["schemas"]["ShelterDetails"] = details;
