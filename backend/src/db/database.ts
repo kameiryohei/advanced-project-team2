@@ -1,6 +1,7 @@
 export type Bindings = {
 	advanced_project_team2: D1Database;
 	ASSET_BUCKET: R2Bucket;
+	FRONTEND_ORIGIN?: string;
 };
 
 export const dbConnect = (env: Bindings): D1Database =>

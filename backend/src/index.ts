@@ -1,58 +1,81 @@
 import { Hono } from "hono";
+import type { components, paths } from "../schema/schema";
+import { createMiddleware } from "../middleware/middleware";
 import type { Bindings } from "./db/database";
 import { dbConnect } from "./db/database";
 import { shelterRepository, videoRepository } from "./repositories";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
+app.use("*", (c, next) => {
+	const frontendOrigin = c.env.FRONTEND_ORIGIN;
+	const middleware = createMiddleware({
+		additionalOrigins: frontendOrigin ? [frontendOrigin] : [],
+	});
+	return middleware(c, next);
+});
+
 app.get("/", (c) => {
 	console.log("Hello Team2!");
 	return c.text("Hello Team2!");
-});
-
-app.get("/db-check", async (c) => {
-	const db = dbConnect(c.env);
-
-	try {
-		const shelterCount = await shelterRepository.countShelters(db);
-		return c.json({ shelterCount });
-	} catch (error) {
-		console.error("D1 query failed", error);
-		const message = error instanceof Error ? error.message : "Unknown error";
-		return c.json({ error: message }, 500);
-	}
 });
 
 app.get("/shelters/:id", async (c) => {
 	const shelterId = Number.parseInt(c.req.param("id"), 10);
 
 	if (Number.isNaN(shelterId)) {
-		return c.json({ error: "shelterId must be a number" }, 400);
+		const errorResponse: components["schemas"]["ErrorResponse"] = {
+			error: "shelterId must be a number",
+		};
+		return c.json(errorResponse, 400);
 	}
 
 	const db = dbConnect(c.env);
 
 	try {
 		const details = await shelterRepository.fetchShelterDetails(db, shelterId);
-		return c.json(details);
+		if (!details) {
+			const errorResponse: components["schemas"]["ErrorResponse"] = {
+				error: "指定した避難所は見つかりませんでした",
+			};
+			return c.json(errorResponse, 404);
+		}
+
+		const response: paths["/shelters/{id}"]["get"]["responses"]["200"]["content"]["application/json"] =
+			details;
+		return c.json(response);
 	} catch (error) {
 		console.error("D1 posts query failed", error);
 		const message = error instanceof Error ? error.message : "Unknown error";
-		return c.json({ error: message }, 500);
+		const errorResponse: components["schemas"]["ErrorResponse"] = {
+			error: message,
+		};
+		return c.json(errorResponse, 500);
 	}
 });
 
-app.get("/db-getShelterList", async (c) => {
+app.get("/shelters", async (c) => {
 	const db = dbConnect(c.env);
 
 	try {
-		const shelterList = await shelterRepository.getShelterList(db);
-		return c.json({ shelterList });
+		const [shelterList, shelterCount] = await Promise.all([
+			shelterRepository.getShelterList(db),
+			shelterRepository.countShelters(db),
+		]);
+		const response: paths["/shelters"]["get"]["responses"]["200"]["content"]["application/json"] =
+			{
+				shelterList,
+				shelterCount,
+			};
+		return c.json(response);
 	} catch (error) {
 		console.error("D1 query failed", error);
 
 		const message = error instanceof Error ? error.message : "Unknown error";
-		return c.json({ error: message }, 500);
+		const errorResponse: components["schemas"]["ErrorResponse"] = {
+			error: message,
+		};
+		return c.json(errorResponse, 500);
 	}
 });
 
@@ -60,22 +83,35 @@ app.get("/shelters/:id/posts", async (c) => {
 	const shelterId = Number.parseInt(c.req.param("id"), 10);
 
 	if (Number.isNaN(shelterId)) {
-		return c.json({ error: "shelterId must be a number" }, 400);
+		const errorResponse: components["schemas"]["ErrorResponse"] = {
+			error: "shelterId must be a number",
+		};
+		return c.json(errorResponse, 400);
 	}
 
 	const db = dbConnect(c.env);
 
 	try {
-		const posts =
-			await shelterRepository.fetchRecentPostsByShelter(db, shelterId);
-		return c.json({ shelterId, posts });
+		const posts = await shelterRepository.fetchRecentPostsByShelter(
+			db,
+			shelterId,
+		);
+		const response: paths["/shelters/{id}/posts"]["get"]["responses"]["200"]["content"]["application/json"] =
+			{
+				shelterId,
+				posts,
+			};
+		return c.json(response);
 	} catch (error) {
 		console.error("D1 posts query failed", error);
 		const message = error instanceof Error ? error.message : "Unknown error";
-		return c.json({ error: message }, 500);
+		const errorResponse: components["schemas"]["ErrorResponse"] = {
+			error: message,
+		};
+		return c.json(errorResponse, 500);
 	}
 });
-
+// 動画アップロード・取得用のサンプルエンドポイント
 app.post("/r2/test-video/:key", async (c) => {
 	const key = c.req.param("key");
 	const bucket = c.env.ASSET_BUCKET;

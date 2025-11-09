@@ -2,6 +2,7 @@ setup/first:
 	make -C backend deps
 	make -C frontend deps
 	npm run install
+	docker compose up -d
 
 run/backend:
 	make -C backend start
