@@ -157,21 +157,31 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 		if (shelterPosts) {
 			console.log("避難所投稿データ:", shelterPosts);
 			// APIから取得した投稿データを現在の報告リストに変換
-			const convertedReports: Report[] = shelterPosts.posts.map((post, index) => ({
-				id: post.id,
-				datetime: new Date(post.posted_at).toLocaleString("ja-JP", {
-					year: "numeric",
-					month: "2-digit",
-					day: "2-digit",
-					hour: "2-digit",
-					minute: "2-digit",
-				}).replace(/\//g, "/").replace(",", ""),
-				address: post.shelter_name || `避難所 ${currentShelterId}`,
-				details: post.content || "投稿内容なし",
-				status: index % 3 === 0 ? "unassigned" : index % 3 === 1 ? "in-progress" : "resolved",
-				reporter: post.author_name,
-				responder: "未対応",
-			}));
+			const convertedReports: Report[] = shelterPosts.posts.map(
+				(post, index) => ({
+					id: post.id,
+					datetime: new Date(post.posted_at)
+						.toLocaleString("ja-JP", {
+							year: "numeric",
+							month: "2-digit",
+							day: "2-digit",
+							hour: "2-digit",
+							minute: "2-digit",
+						})
+						.replace(/\//g, "/")
+						.replace(",", ""),
+					address: post.shelter_name || `避難所 ${currentShelterId}`,
+					details: post.content || "投稿内容なし",
+					status:
+						index % 3 === 0
+							? "unassigned"
+							: index % 3 === 1
+								? "in-progress"
+								: "resolved",
+					reporter: post.author_name,
+					responder: "未対応",
+				}),
+			);
 			setReports([...mockReports, ...convertedReports]);
 		}
 	}, [sheltersData, shelterDetails, shelterPosts, currentShelterId]);
@@ -326,10 +336,10 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 					</CardHeader>
 					<CardContent>
 						<div className="text-2xl font-bold text-destructive">
-							{shelterPosts 
+							{shelterPosts
 								? shelterPosts.posts.length
-								: reports.filter((r) => r.status === "unassigned").length
-							}件
+								: reports.filter((r) => r.status === "unassigned").length}
+							件
 						</div>
 						<p className="text-xs text-muted-foreground">
 							{shelterPosts ? "API取得済み投稿" : "緊急対応が必要"}
