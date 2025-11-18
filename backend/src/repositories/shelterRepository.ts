@@ -36,6 +36,7 @@ export type ShelterDetails = {
 	created_at: string;
 };
 
+
 export type ShelterPosts = {
 	postId: string;
 	authorName: string;
@@ -52,6 +53,13 @@ export type ShelterPosts = {
 	mediaType: string | null;
 	fileName: string | null;
 	createdAtByMedia: string | null;
+  
+export type NewCommentResult = {
+	id: string;
+	postId: string;
+	authorName: string;
+	content: string;
+	createdAt: string;
 };
 
 const recentPostsByShelterQuery = `SELECT
@@ -111,6 +119,7 @@ export const fetchRecentPostsByShelter = async (
 
 	return results;
 };
+
 
 export class ShelterNotFoundError extends Error {
 	constructor(id: number) {
@@ -227,4 +236,46 @@ export const insertShelterPost = async (
 
 		throw err;
 	}
+=======
+export const createCommentForPost = async (
+	db: Database,
+	{
+		commentId,
+		postId,
+		authorName,
+		content,
+	}: {
+		commentId: string;
+		postId: string;
+		authorName: string;
+		content: string;
+	},
+): Promise<NewCommentResult> => {
+	const createdAt = new Date().toISOString();
+
+	const result = await db
+		.prepare(
+			`
+      INSERT INTO comments (id, post_id, author_name, content, created_at)
+      VALUES (?, ?, ?, ?, ?)
+      RETURNING
+        id,
+        post_id AS postId,
+        author_name AS authorName,
+        content,
+        created_at AS createdAt
+    `,
+		)
+		.bind(commentId, postId, authorName, content, createdAt)
+		.first<NewCommentResult>();
+
+	if (!result) {
+		throw new Error("Insert failed");
+	}
+
+	return {
+		...result,
+		id: String(result.id),
+		postId: String(result.postId),
+	};
 };
