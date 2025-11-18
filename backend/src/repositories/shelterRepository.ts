@@ -36,7 +36,6 @@ export type ShelterDetails = {
 	created_at: string;
 };
 
-
 export type ShelterPosts = {
 	postId: string;
 	authorName: string;
@@ -53,7 +52,8 @@ export type ShelterPosts = {
 	mediaType: string | null;
 	fileName: string | null;
 	createdAtByMedia: string | null;
-  
+};
+
 export type NewCommentResult = {
 	id: string;
 	postId: string;
@@ -119,7 +119,6 @@ export const fetchRecentPostsByShelter = async (
 
 	return results;
 };
-
 
 export class ShelterNotFoundError extends Error {
 	constructor(id: number) {
@@ -236,7 +235,8 @@ export const insertShelterPost = async (
 
 		throw err;
 	}
-=======
+};
+
 export const createCommentForPost = async (
 	db: Database,
 	{
