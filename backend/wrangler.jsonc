@@ -6,24 +6,33 @@
 	"vars": {
 		"YAHOO_MAPS_API_KEY": "dj00aiZpPVY5REM5aFpuTTU3VCZzPWNvbnN1bWVyc2VjcmV0Jng9MzU-"
 	}
+	"d1_databases": [
+		{
+			"binding": "advanced_project_team2",
+			"database_name": "advanced-project-team2",
+			"database_id": "2b40c4b1-1e95-4d4b-a71d-2b624635838d"
+		}
+	],
 	// "compatibility_flags": [
 	//   "nodejs_compat"
 	// ],
-	// "vars": {
-	//   "MY_VAR": "my-variable"
-	// },
+	"vars": {
+		"FRONTEND_ORIGIN": "https://advanced-project-team2.pages.dev",
+		"NODE_ENV": "production"
+	},
 	// "kv_namespaces": [
 	//   {
 	//     "binding": "MY_KV_NAMESPACE",
 	//     "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 	//   }
 	// ],
-	// "r2_buckets": [
-	//   {
-	//     "binding": "MY_BUCKET",
-	//     "bucket_name": "my-bucket"
-	//   }
-	// ],
+	"r2_buckets": [
+		{
+			"binding": "ASSET_BUCKET",
+			"bucket_name": "advanced-project-team2",
+			"preview_bucket_name": "advanced-project-team2-dev"
+		}
+	]
 	// "d1_databases": [
 	//   {
 	//     "binding": "MY_DB",

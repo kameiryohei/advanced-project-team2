@@ -3,6 +3,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "wrangler dev",
+		"build": "wrangler build",
 		"deploy": "wrangler deploy --minify",
 		"cf-typegen": "wrangler types --env-interface CloudflareBindings",
 		"lint": "biome lint",
@@ -10,12 +11,19 @@
 		"check": "biome check",
 		"lint:fix": "biome lint --write",
 		"format:fix": "biome format --write",
-		"check:fix": "biome check --write"
+		"check:fix": "biome check --write",
+		"db:init": "wrangler d1 execute advanced-project-team2 --local --file=db/schema.sql",
+		"db:migrate": "wrangler d1 migrations apply advanced-project-team2 --local",
+		"db:console": "wrangler d1 execute advanced-project-team2 --local --command"
 	},
 	"dependencies": {
-		"hono": "^4.9.10"
+		"hono": "^4.9.10",
+		"uuid": "^13.0.0"
 	},
 	"devDependencies": {
+		"@types/node": "^24.10.1",
+		"openapi-typescript": "^7.10.1",
+		"typescript": "^5.9.3",
 		"wrangler": "^4.4.0"
 	}
 }
