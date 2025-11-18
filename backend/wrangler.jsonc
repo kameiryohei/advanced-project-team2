@@ -14,7 +14,8 @@
 	//   "nodejs_compat"
 	// ],
 	"vars": {
-		"FRONTEND_ORIGIN": "https://advanced-project-team2.pages.dev"
+		"FRONTEND_ORIGIN": "https://advanced-project-team2.pages.dev",
+		"NODE_ENV": "production"
 	},
 	// "kv_namespaces": [
 	//   {
