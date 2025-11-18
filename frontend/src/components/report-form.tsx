@@ -1,236 +1,671 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { X, Upload, Calendar, MapPin, User, AlertTriangle } from "lucide-react"
+import {
+	AlertTriangle,
+	Calendar,
+	MapPin,
+	Square,
+	Upload,
+	User,
+	Video,
+	X,
+} from "lucide-react";
+import type React from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 interface ReportFormProps {
-  onClose: () => void
-  onSubmit: (report: any) => void
+	onClose: () => void;
+	onSubmit: (report: any) => void;
 }
 
 export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
-  const [formData, setFormData] = useState({
-    datetime: new Date().toISOString().slice(0, 16), // YYYY-MM-DDTHH:mm format
-    address: "",
-    details: "",
-    status: "unassigned",
-    reporter: "",
-    attachment: null as File | null,
-    responder: "未対応",
-  })
+	const [formData, setFormData] = useState({
+		datetime: new Date().toISOString().slice(0, 16),
+		address: "",
+		details: "",
+		status: "unassigned",
+		reporter: "",
+		attachment: null as File | null,
+		responder: "未対応",
+	});
 
-  const [isSubmitting, setIsSubmitting] = useState(false)
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [showCamera, setShowCamera] = useState(false);
+	const [stream, setStream] = useState<MediaStream | null>(null);
+	const [isRecording, setIsRecording] = useState(false);
+	const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(
+		null,
+	);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
+	const [videoPreview, setVideoPreview] = useState<string | null>(null);
+	const [recordingDuration, setRecordingDuration] = useState(0);
+	const videoRef = useRef<HTMLVideoElement>(null);
+	const recordingIntervalRef = useRef<number | null>(null);
 
-    // Format datetime to match the expected format
-    const formattedDatetime = new Date(formData.datetime)
-      .toLocaleString("ja-JP", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-      .replace(/\//g, "/")
-      .replace(",", "")
+	// Generate unique IDs for form elements
+	const datetimeId = useId();
+	const addressId = useId();
+	const detailsId = useId();
+	const reporterId = useId();
+	const attachmentId = useId();
 
-    const reportData = {
-      id: Date.now().toString(),
-      datetime: formattedDatetime,
-      address: formData.address,
-      details: formData.details,
-      status: formData.status,
-      reporter: formData.reporter,
-      attachment: formData.attachment ? formData.attachment.name : undefined,
-      responder: formData.responder,
-    }
+	const handleSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		setIsSubmitting(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+		// Format datetime to match the expected format
+		const formattedDatetime = new Date(formData.datetime)
+			.toLocaleString("ja-JP", {
+				year: "numeric",
+				month: "2-digit",
+				day: "2-digit",
+				hour: "2-digit",
+				minute: "2-digit",
+			})
+			.replace(/\//g, "/")
+			.replace(",", "");
 
-    onSubmit(reportData)
-    setIsSubmitting(false)
-    onClose()
-  }
+		const reportData = {
+			id: Date.now().toString(),
+			datetime: formattedDatetime,
+			address: formData.address,
+			details: formData.details,
+			status: formData.status,
+			reporter: formData.reporter,
+			attachment: formData.attachment ? formData.attachment.name : undefined,
+			responder: formData.responder,
+		};
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setFormData((prev) => ({ ...prev, attachment: file }))
-    }
-  }
+		// Simulate API call
+		await new Promise((resolve) => setTimeout(resolve, 1000));
 
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-primary" />
-            <CardTitle className="text-xl">新規災害報告</CardTitle>
-          </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </CardHeader>
+		onSubmit(reportData);
+		setIsSubmitting(false);
+		onClose();
+	};
 
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Date and Time */}
-            <div className="space-y-2">
-              <Label htmlFor="datetime" className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                発生日時
-              </Label>
-              <Input
-                id="datetime"
-                type="datetime-local"
-                value={formData.datetime}
-                onChange={(e) => setFormData((prev) => ({ ...prev, datetime: e.target.value }))}
-                required
-                className="w-full"
-              />
-            </div>
+	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (file) {
+			setFormData((prev) => ({ ...prev, attachment: file }));
+		}
+	};
 
-            {/* Address */}
-            <div className="space-y-2">
-              <Label htmlFor="address" className="flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                発生場所・住所
-              </Label>
-              <Input
-                id="address"
-                type="text"
-                placeholder="例: 愛知県名古屋市中区栄1-1-1"
-                value={formData.address}
-                onChange={(e) => setFormData((prev) => ({ ...prev, address: e.target.value }))}
-                required
-                className="w-full"
-              />
-            </div>
+	const startCamera = async () => {
+		try {
+			// カメラの制約を改善（フォールバック付き）
+			const constraints = {
+				video: {
+					facingMode: "environment", // 背面カメラを優先
+					width: { ideal: 1280, max: 1920 },
+					height: { ideal: 720, max: 1080 },
+					frameRate: { ideal: 30, max: 60 },
+				},
+				audio: true,
+			};
 
-            {/* Details */}
-            <div className="space-y-2">
-              <Label htmlFor="details">詳細情報</Label>
-              <Textarea
-                id="details"
-                placeholder="被害の詳細、状況、必要な支援内容などを具体的に記入してください"
-                value={formData.details}
-                onChange={(e) => setFormData((prev) => ({ ...prev, details: e.target.value }))}
-                required
-                className="min-h-[100px] resize-none"
-              />
-            </div>
+			let mediaStream: MediaStream;
+			try {
+				// まず背面カメラを試す
+				mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+			} catch (backError) {
+				console.warn(
+					"背面カメラが利用できません、前面カメラを試します:",
+					backError,
+				);
+				// 背面カメラが失敗した場合、前面カメラを試す
+				const frontConstraints = {
+					video: {
+						facingMode: "user",
+						width: { ideal: 1280, max: 1920 },
+						height: { ideal: 720, max: 1080 },
+						frameRate: { ideal: 30, max: 60 },
+					},
+					audio: true,
+				};
+				try {
+					mediaStream =
+						await navigator.mediaDevices.getUserMedia(frontConstraints);
+				} catch (frontError) {
+					console.warn("前面カメラも失敗、基本設定で試します:", frontError);
+					// 最終的なフォールバック
+					mediaStream = await navigator.mediaDevices.getUserMedia({
+						video: true,
+						audio: true,
+					});
+				}
+			}
 
-            {/* Reporter */}
-            <div className="space-y-2">
-              <Label htmlFor="reporter" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
-                報告者名
-              </Label>
-              <Input
-                id="reporter"
-                type="text"
-                placeholder="お名前を入力してください"
-                value={formData.reporter}
-                onChange={(e) => setFormData((prev) => ({ ...prev, reporter: e.target.value }))}
-                required
-                className="w-full"
-              />
-            </div>
+			setShowCamera(true);
+			setStream(mediaStream);
 
-            {/* Priority/Status */}
-            <div className="space-y-2">
-              <Label htmlFor="status">緊急度</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="緊急度を選択" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unassigned">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-destructive"></div>
-                      緊急 - 即座に対応が必要
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="in-progress">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-secondary"></div>
-                      重要 - 早急な対応が必要
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="monitoring">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-chart-2"></div>
-                      通常 - 通常の対応で可
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+			// 少し待ってからvideo要素にストリームを設定
+			setTimeout(async () => {
+				if (videoRef.current && mediaStream) {
+					videoRef.current.srcObject = mediaStream;
+					// ビデオの読み込みを確実にする
+					try {
+						await videoRef.current.play();
+						console.log("カメラプレビューが開始されました");
+					} catch (playError) {
+						console.warn("ビデオの自動再生に失敗:", playError);
+						// ユーザーインタラクションが必要な場合がある
+						videoRef.current.muted = true;
+						try {
+							await videoRef.current.play();
+						} catch (secondTryError) {
+							console.error("ビデオ再生に2度目も失敗:", secondTryError);
+						}
+					}
+				}
+			}, 100);
+		} catch (error) {
+			console.error("カメラの起動に失敗しました:", error);
+			alert(
+				"カメラにアクセスできませんでした。\n\n原因:\n1. カメラのアクセス許可が拒否されている\n2. 他のアプリケーションがカメラを使用中\n3. HTTPS接続が必要\n\nブラウザの設定を確認してください。",
+			);
+		}
+	};
 
-            {/* File Attachment */}
-            <div className="space-y-2">
-              <Label htmlFor="attachment" className="flex items-center gap-2">
-                <Upload className="h-4 w-4" />
-                添付ファイル（写真・動画など）
-              </Label>
-              <div className="border-2 border-dashed border-border rounded-lg p-4">
-                <input
-                  id="attachment"
-                  type="file"
-                  accept="image/*,video/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-                <label
-                  htmlFor="attachment"
-                  className="flex flex-col items-center gap-2 cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Upload className="h-8 w-8" />
-                  <span className="text-sm">
-                    {formData.attachment ? formData.attachment.name : "ファイルを選択またはドラッグ&ドロップ"}
-                  </span>
-                  <span className="text-xs">画像・動画ファイル対応</span>
-                </label>
-              </div>
-            </div>
+	const stopCamera = () => {
+		if (mediaRecorder && isRecording) {
+			mediaRecorder.stop();
+		}
+		if (stream) {
+			for (const track of stream.getTracks()) {
+				track.stop();
+			}
+			setStream(null);
+		}
 
-            {/* Submit Buttons */}
-            <div className="flex gap-3 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                className="flex-1 bg-transparent"
-                disabled={isSubmitting}
-              >
-                キャンセル
-              </Button>
-              <Button
-                type="submit"
-                className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? "送信中..." : "報告を送信"}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
-  )
+		// Clear recording timer
+		if (recordingIntervalRef.current) {
+			clearInterval(recordingIntervalRef.current);
+			recordingIntervalRef.current = null;
+		}
+
+		setShowCamera(false);
+		setIsRecording(false);
+		setMediaRecorder(null);
+		setRecordingDuration(0);
+	};
+
+	const resetAttachment = () => {
+		setFormData((prev) => ({ ...prev, attachment: null }));
+		if (videoPreview) {
+			URL.revokeObjectURL(videoPreview);
+			setVideoPreview(null);
+		}
+	};
+
+	const formatDuration = (seconds: number) => {
+		const mins = Math.floor(seconds / 60);
+		const secs = seconds % 60;
+		return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+	};
+
+	const startRecording = () => {
+		if (stream) {
+			// Reset recording state
+			setRecordingDuration(0);
+
+			const recorder = new MediaRecorder(stream, {
+				mimeType: "video/webm; codecs=vp8,opus",
+			});
+
+			const chunks: Blob[] = [];
+			recorder.ondataavailable = (event) => {
+				if (event.data.size > 0) {
+					chunks.push(event.data);
+				}
+			};
+
+			recorder.onstop = () => {
+				const blob = new Blob(chunks, { type: "video/webm" });
+				const videoUrl = URL.createObjectURL(blob);
+				setVideoPreview(videoUrl);
+
+				const file = new File([blob], `video_${Date.now()}.webm`, {
+					type: "video/webm",
+				});
+				setFormData((prev) => ({ ...prev, attachment: file }));
+
+				// Clear recording timer
+				if (recordingIntervalRef.current) {
+					clearInterval(recordingIntervalRef.current);
+					recordingIntervalRef.current = null;
+				}
+				stopCamera();
+			};
+
+			setMediaRecorder(recorder);
+			recorder.start();
+			setIsRecording(true);
+
+			// Start recording duration timer
+			recordingIntervalRef.current = setInterval(() => {
+				setRecordingDuration((prev) => prev + 1);
+			}, 1000);
+		}
+	};
+
+	const stopRecording = () => {
+		if (mediaRecorder && isRecording) {
+			mediaRecorder.stop();
+			setIsRecording(false);
+		}
+	};
+
+	useEffect(() => {
+		return () => {
+			if (stream) {
+				for (const track of stream.getTracks()) {
+					track.stop();
+				}
+			}
+			if (recordingIntervalRef.current) {
+				clearInterval(recordingIntervalRef.current);
+			}
+			if (videoPreview) {
+				URL.revokeObjectURL(videoPreview);
+			}
+		};
+	}, [stream, videoPreview]);
+
+	return (
+		<div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+			<Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+				<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+					<div className="flex items-center gap-2">
+						<AlertTriangle className="h-5 w-5 text-primary" />
+						<CardTitle className="text-xl">新規災害報告</CardTitle>
+					</div>
+					<Button variant="ghost" size="sm" onClick={onClose}>
+						<X className="h-4 w-4" />
+					</Button>
+				</CardHeader>
+
+				<CardContent>
+					<form onSubmit={handleSubmit} className="space-y-6">
+						{/* Date and Time */}
+						<div className="space-y-2">
+							<Label htmlFor={datetimeId} className="flex items-center gap-2">
+								<Calendar className="h-4 w-4" />
+								発生日時
+							</Label>
+							<Input
+								id={datetimeId}
+								type="datetime-local"
+								value={formData.datetime}
+								onChange={(e) =>
+									setFormData((prev) => ({ ...prev, datetime: e.target.value }))
+								}
+								required
+								className="w-full"
+							/>
+						</div>
+
+						{/* Address */}
+						<div className="space-y-2">
+							<Label htmlFor={addressId} className="flex items-center gap-2">
+								<MapPin className="h-4 w-4" />
+								発生場所・住所
+							</Label>
+							<Input
+								id={addressId}
+								type="text"
+								placeholder="例: 愛知県名古屋市中区栄1-1-1"
+								value={formData.address}
+								onChange={(e) =>
+									setFormData((prev) => ({ ...prev, address: e.target.value }))
+								}
+								required
+								className="w-full"
+							/>
+						</div>
+
+						{/* Details */}
+						<div className="space-y-2">
+							<Label htmlFor={detailsId}>詳細情報</Label>
+							<Textarea
+								id={detailsId}
+								placeholder="被害の詳細、状況、必要な支援内容などを具体的に記入してください"
+								value={formData.details}
+								onChange={(e) =>
+									setFormData((prev) => ({ ...prev, details: e.target.value }))
+								}
+								required
+								className="min-h-[100px] resize-none"
+							/>
+						</div>
+
+						{/* Reporter */}
+						<div className="space-y-2">
+							<Label htmlFor={reporterId} className="flex items-center gap-2">
+								<User className="h-4 w-4" />
+								報告者名
+							</Label>
+							<Input
+								id={reporterId}
+								type="text"
+								placeholder="お名前を入力してください"
+								value={formData.reporter}
+								onChange={(e) =>
+									setFormData((prev) => ({ ...prev, reporter: e.target.value }))
+								}
+								required
+								className="w-full"
+							/>
+						</div>
+
+						{/* Priority/Status */}
+						<div className="space-y-2">
+							<Label htmlFor="status">緊急度</Label>
+							<Select
+								value={formData.status}
+								onValueChange={(value) =>
+									setFormData((prev) => ({ ...prev, status: value }))
+								}
+							>
+								<SelectTrigger>
+									<SelectValue placeholder="緊急度を選択" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="unassigned">
+										<div className="flex items-center gap-2">
+											<div className="w-2 h-2 rounded-full bg-destructive"></div>
+											緊急 - 即座に対応が必要
+										</div>
+									</SelectItem>
+									<SelectItem value="in-progress">
+										<div className="flex items-center gap-2">
+											<div className="w-2 h-2 rounded-full bg-secondary"></div>
+											重要 - 早急な対応が必要
+										</div>
+									</SelectItem>
+									<SelectItem value="monitoring">
+										<div className="flex items-center gap-2">
+											<div className="w-2 h-2 rounded-full bg-chart-2"></div>
+											通常 - 通常の対応で可
+										</div>
+									</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+
+						{/* File Attachment */}
+						<div className="space-y-2">
+							<Label htmlFor={attachmentId} className="flex items-center gap-2">
+								<Upload className="h-4 w-4" />
+								添付ファイル（写真・動画など）
+							</Label>{" "}
+							{!showCamera ? (
+								<div className="space-y-3">
+									{/* 添付ファイルプレビュー */}
+									{formData.attachment && (
+										<div className="border rounded-lg p-4 bg-muted/50">
+											<div className="flex items-center justify-between">
+												<div className="flex items-center gap-2">
+													<Video className="h-4 w-4" />
+													<span className="text-sm font-medium">
+														{formData.attachment.name}
+													</span>
+													<span className="text-xs text-muted-foreground">
+														(
+														{(formData.attachment.size / 1024 / 1024).toFixed(
+															2,
+														)}{" "}
+														MB)
+													</span>
+												</div>
+												<Button
+													type="button"
+													variant="ghost"
+													size="sm"
+													onClick={resetAttachment}
+												>
+													<X className="h-4 w-4" />
+												</Button>
+											</div>
+											{videoPreview && (
+												<video
+													src={videoPreview}
+													controls
+													className="mt-3 w-full h-40 object-cover rounded"
+													aria-label="録画した動画のプレビュー"
+												>
+													<track
+														kind="captions"
+														src=""
+														srcLang="ja"
+														label="日本語"
+													/>
+												</video>
+											)}
+										</div>
+									)}
+
+									{/* ファイル選択エリア */}
+									{!formData.attachment && (
+										<div className="border-2 border-dashed border-border rounded-lg p-4">
+											<input
+												id={attachmentId}
+												type="file"
+												accept="image/*,video/*"
+												onChange={handleFileChange}
+												className="hidden"
+											/>
+											<label
+												htmlFor={attachmentId}
+												className="flex flex-col items-center gap-2 cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
+											>
+												<Upload className="h-8 w-8" />
+												<span className="text-sm">
+													ファイルを選択またはドラッグ&ドロップ
+												</span>
+												<span className="text-xs">画像・動画ファイル対応</span>
+											</label>
+										</div>
+									)}
+
+									{/* カメラ起動ボタン */}
+									<div className="flex gap-2">
+										<Button
+											type="button"
+											variant="outline"
+											onClick={startCamera}
+											className="flex-1"
+										>
+											<Video className="h-4 w-4 mr-2" />
+											動画を録画
+										</Button>
+									</div>
+								</div>
+							) : (
+								/* カメラプレビュー */
+								<div className="space-y-3">
+									<div className="relative border rounded-lg overflow-hidden bg-gray-900">
+										{!stream ? (
+											<div className="w-full h-64 flex items-center justify-center text-white">
+												<div className="text-center">
+													<Video className="h-8 w-8 mx-auto mb-2 animate-pulse" />
+													<p className="text-sm">カメラを起動中...</p>
+												</div>
+											</div>
+										) : (
+											<video
+												ref={videoRef}
+												autoPlay
+												playsInline
+												muted
+												controls={false}
+												className="w-full h-64 object-cover"
+												style={{ transform: "scaleX(-1)" }}
+												onLoadedMetadata={(e) => {
+													const video = e.target as HTMLVideoElement;
+													console.log("ビデオメタデータが読み込まれました", {
+														width: video.videoWidth,
+														height: video.videoHeight,
+													});
+												}}
+												onCanPlay={(e) => {
+													const video = e.target as HTMLVideoElement;
+													console.log(
+														"ビデオの再生準備が完了しました",
+														video.readyState,
+													);
+												}}
+												onError={(e) => {
+													console.error("ビデオエラー:", e);
+												}}
+												onPlay={() => {
+													console.log("ビデオが再生開始されました");
+												}}
+											/>
+										)}
+										{/* ステータス表示 */}
+										{stream && (
+											<div className="absolute top-2 left-2 bg-green-600 text-white px-2 py-1 rounded text-xs">
+												カメラアクティブ
+											</div>
+										)}
+										{/* 録画インジケーターと時間表示 */}
+										{isRecording && (
+											<div className="absolute top-4 left-4 flex items-center gap-2 bg-red-600 text-white px-3 py-1 rounded-full">
+												<div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+												<span className="text-sm font-medium">
+													REC {formatDuration(recordingDuration)}
+												</span>
+											</div>
+										)}{" "}
+										{/* 動画録画コントロール */}
+										<div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+											{!isRecording ? (
+												<Button
+													type="button"
+													onClick={startRecording}
+													className="bg-red-600 text-white hover:bg-red-700 rounded-full w-16 h-16 flex items-center justify-center"
+												>
+													<Video className="h-6 w-6" />
+												</Button>
+											) : (
+												<Button
+													type="button"
+													onClick={stopRecording}
+													className="bg-gray-800 text-white hover:bg-gray-700 rounded-full w-16 h-16 flex items-center justify-center"
+												>
+													<Square className="h-6 w-6" />
+												</Button>
+											)}
+										</div>
+										{/* 閉じるボタン */}
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											onClick={stopCamera}
+											className="absolute top-2 right-2 bg-black/50 text-white hover:bg-black/70"
+											disabled={isRecording}
+										>
+											<X className="h-4 w-4" />
+										</Button>
+									</div>
+
+									<div className="text-xs text-muted-foreground text-center space-y-1">
+										{isRecording ? (
+											<div>
+												<p>録画中です ({formatDuration(recordingDuration)})</p>
+												<p>停止ボタン（■）をタップして録画を終了してください</p>
+											</div>
+										) : (
+											<div>
+												<p>🔴 動画録画開始　✕ カメラ終了</p>
+												<div className="mt-2 flex gap-2 justify-center">
+													<button
+														type="button"
+														onClick={() => {
+															console.log("Debug: Stream state:", !!stream);
+															console.log(
+																"Debug: VideoRef current:",
+																!!videoRef.current,
+															);
+															if (videoRef.current) {
+																console.log(
+																	"Debug: Video srcObject:",
+																	!!videoRef.current.srcObject,
+																);
+																console.log(
+																	"Debug: Video readyState:",
+																	videoRef.current.readyState,
+																);
+																console.log(
+																	"Debug: Video paused:",
+																	videoRef.current.paused,
+																);
+																console.log(
+																	"Debug: Video muted:",
+																	videoRef.current.muted,
+																);
+															}
+															if (stream) {
+																console.log(
+																	"Debug: Stream tracks:",
+																	stream
+																		.getTracks()
+																		.map((t) => ({
+																			kind: t.kind,
+																			enabled: t.enabled,
+																			readyState: t.readyState,
+																		})),
+																);
+															}
+														}}
+														className="text-xs bg-blue-500 text-white px-2 py-1 rounded"
+													>
+														デバッグ情報
+													</button>
+												</div>
+											</div>
+										)}
+									</div>
+								</div>
+							)}
+						</div>
+
+						{/* Submit Buttons */}
+						<div className="flex gap-3 pt-4">
+							<Button
+								type="button"
+								variant="outline"
+								onClick={onClose}
+								className="flex-1 bg-transparent"
+								disabled={isSubmitting}
+							>
+								キャンセル
+							</Button>
+							<Button
+								type="submit"
+								className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
+								disabled={isSubmitting}
+							>
+								{isSubmitting ? "送信中..." : "報告を送信"}
+							</Button>
+						</div>
+					</form>
+				</CardContent>
+			</Card>
+		</div>
+	);
 }
