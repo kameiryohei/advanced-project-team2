@@ -1,35 +1,35 @@
-import { useState } from "react";
-import viteLogo from "/vite.svg";
-import reactLogo from "./assets/react.svg";
-import "./App.css";
+"use client";
 
-function App() {
-	const [count, setCount] = useState(0);
+import { ArrowLeft } from "lucide-react";
+import { useState } from "react";
+import { ShelterDashboard } from "@/components/shelter-dashboard";
+import { ShelterOverview } from "@/components/shelter-overview";
+import { Button } from "@/components/ui/button";
+
+export default function HomePage() {
+	const [selectedShelter, setSelectedShelter] = useState<string | null>(null);
+
+	if (selectedShelter) {
+		return (
+			<main className="min-h-screen bg-background">
+				<div className="p-4 border-b bg-card">
+					<Button
+						variant="ghost"
+						onClick={() => setSelectedShelter(null)}
+						className="flex items-center space-x-2"
+					>
+						<ArrowLeft className="h-4 w-4" />
+						<span>避難所一覧に戻る</span>
+					</Button>
+				</div>
+				<ShelterDashboard shelterId={selectedShelter} />
+			</main>
+		);
+	}
 
 	return (
-		<>
-			<div>
-				<a href="https://vite.dev" target="_blank" rel="noopener">
-					<img src={viteLogo} className="logo" alt="Vite logo" />
-				</a>
-				<a href="https://react.dev" target="_blank" rel="noopener">
-					<img src={reactLogo} className="logo react" alt="React logo" />
-				</a>
-			</div>
-			<h1>Vite + React</h1>
-			<div className="card">
-				<button onClick={() => setCount((count) => count + 1)}>
-					count is {count}
-				</button>
-				<p>
-					Deploy Test2 <code>src/App.tsx</code> and save to test HMR
-				</p>
-			</div>
-			<p className="read-the-docs">
-				Click on the Vite and React logos to learn more
-			</p>
-		</>
+		<main className="min-h-screen bg-background">
+			<ShelterOverview onShelterSelect={setSelectedShelter} />
+		</main>
 	);
 }
-
-export default App;
