@@ -15,7 +15,12 @@ export default defineConfig(() => {
 			};
 
 	return {
-		plugins: [react()],
+		plugins: [react(), tailwindcss()],
+		resolve: {
+			alias: {
+				"@": path.resolve(__dirname, "./src"),
+			},
+		},
 		...(server ? { server } : {}),
 	};
 });

@@ -4,8 +4,10 @@
 	"main": "src/index.ts",
 	"compatibility_date": "2025-10-08",
 	"vars": {
-		"YAHOO_MAPS_API_KEY": "dj00aiZpPVY5REM5aFpuTTU3VCZzPWNvbnN1bWVyc2VjcmV0Jng9MzU-"
-	}
+		"YAHOO_MAPS_API_KEY": "dj00aiZpPVY5REM5aFpuTTU3VCZzPWNvbnN1bWVyc2VjcmV0Jng9MzU-",
+		"FRONTEND_ORIGIN": "https://advanced-project-team2.pages.dev",
+		"NODE_ENV": "production"
+	},
 	"d1_databases": [
 		{
 			"binding": "advanced_project_team2",
@@ -16,10 +18,6 @@
 	// "compatibility_flags": [
 	//   "nodejs_compat"
 	// ],
-	"vars": {
-		"FRONTEND_ORIGIN": "https://advanced-project-team2.pages.dev",
-		"NODE_ENV": "production"
-	},
 	// "kv_namespaces": [
 	//   {
 	//     "binding": "MY_KV_NAMESPACE",

@@ -1,36 +1,18 @@
 import { Hono } from "hono";
-import { cors } from "hono/cors";
-
-// 環境変数の型定義
-type Bindings = {
-	YAHOO_MAPS_API_KEY: string;
-};
-
-const app = new Hono<{ Bindings: Bindings }>();
-
-// CORS設定
-app.use(
-	"*",
-	cors({
-		origin: ["http://localhost:5173", "http://localhost:3000"],
-		allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-		allowHeaders: ["Content-Type", "Authorization"],
-	}),
-);
 import { createMiddleware } from "../middleware/middleware";
 import type { components, paths } from "../schema/schema";
 import type { Bindings } from "./db/database";
 import { dbConnect } from "./db/database";
 import { shelterRepository, videoRepository } from "./repositories";
 import type { ShelterPosts } from "./repositories/shelterRepository";
-import { v4 as uuidv4 } from "uuid";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
+// CORS設定を含むミドルウェア
 app.use("*", (c, next) => {
 	const frontendOrigin = c.env.FRONTEND_ORIGIN;
 	const middleware = createMiddleware({
-		additionalOrigins: frontendOrigin ? [frontendOrigin] : [],
+		additionalOrigins: frontendOrigin ? [frontendOrigin] : ["http://localhost:5173", "http://localhost:3000"],
 	});
 	return middleware(c, next);
 });
@@ -50,7 +32,7 @@ app.get("/api/geocode/reverse", async (c) => {
 	}
 
 	// 環境変数からAPIキーを取得
-	const apiKey = c.env.YAHOO_MAPS_API_KEY;
+	const apiKey = (c.env as any).YAHOO_MAPS_API_KEY;
 	if (!apiKey) {
 		return c.json({ error: "APIキーが設定されていません" }, 500);
 	}
@@ -64,7 +46,7 @@ app.get("/api/geocode/reverse", async (c) => {
 			throw new Error("Yahoo APIからのレスポンスが失敗しました");
 		}
 
-		const data = await response.json();
+		const data = await response.json() as any;
 
 		if (data.Feature && data.Feature.length > 0) {
 			const address = data.Feature[0].Property.Address;
@@ -146,6 +128,9 @@ app.post("/api/reports", async (c) => {
 	} catch {
 		// console.error(`[${getJSTTimestamp()}] 報告保存エラー:`);
 		return c.json({ error: "報告の保存に失敗しました" }, 500);
+	}
+});
+
 app.get("/shelters/:id", async (c) => {
 	const shelterId = Number.parseInt(c.req.param("id"), 10);
 
