@@ -10,7 +10,7 @@ import {
 	User,
 } from "lucide-react";
 import type React from "react";
-import { useState } from "react";
+import { useState, useId } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -107,6 +107,10 @@ export function ConversationThread({
 	const [newStatus, setNewStatus] = useState("");
 	const [responderName, setResponderName] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	// Generate unique IDs for form elements
+	const responderInputId = useId();
+	const messageInputId = useId();
 
 	const handleSubmitMessage = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -214,6 +218,35 @@ export function ConversationThread({
 								</div>
 							)}
 						</div>
+
+						{/* 添付動画の表示 */}
+						{report.attachment?.includes('video') && (
+							<div>
+								<h4 className="font-medium text-sm text-muted-foreground mb-2">
+									添付動画
+								</h4>
+								<div className="border rounded-lg overflow-hidden bg-muted/50">
+									<video
+										controls
+										className="w-full max-h-80 object-cover"
+										aria-label="報告に添付された動画"
+									>
+										<source src={`/api/attachments/${report.id}`} type="video/webm" />
+										<source src={`/api/attachments/${report.id}`} type="video/mp4" />
+										<track
+											kind="captions"
+											src=""
+											srcLang="ja"
+											label="日本語"
+										/>
+										お使いのブラウザは動画再生に対応していません。
+									</video>
+									<div className="p-3 bg-background border-t text-sm text-muted-foreground">
+										📹 {report.attachment}
+									</div>
+								</div>
+							</div>
+						)}
 					</div>
 				</CardContent>
 			</Card>
@@ -276,7 +309,6 @@ export function ConversationThread({
 														</span>
 													</div>
 													<Badge
-														size="sm"
 														className={`text-xs ${getStatusColor(message.status)}`}
 													>
 														{message.status}
@@ -299,9 +331,9 @@ export function ConversationThread({
 							<form onSubmit={handleSubmitMessage} className="space-y-4">
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 									<div className="space-y-2">
-										<Label htmlFor="responder">対応者名</Label>
+										<Label htmlFor={responderInputId}>対応者名</Label>
 										<Input
-											id="responder"
+											id={responderInputId}
 											placeholder="お名前を入力"
 											value={responderName}
 											onChange={(e) => setResponderName(e.target.value)}
@@ -324,9 +356,9 @@ export function ConversationThread({
 								</div>
 
 								<div className="space-y-2">
-									<Label htmlFor="message">メッセージ</Label>
+									<Label htmlFor={messageInputId}>メッセージ</Label>
 									<Textarea
-										id="message"
+										id={messageInputId}
 										placeholder="対応状況や指示、質問などを入力してください"
 										value={newMessage}
 										onChange={(e) => setNewMessage(e.target.value)}
