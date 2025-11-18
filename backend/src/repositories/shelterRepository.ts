@@ -27,6 +27,14 @@ export type ShelterDetails = {
 	created_at: string;
 };
 
+export type NewCommentResult = {
+	id: string;
+	postId: string;
+	authorName: string;
+	content: string;
+	createdAt: string;
+};
+
 const recentPostsByShelterQuery = `SELECT
 	p.id,
 	p.author_name,
@@ -83,4 +91,45 @@ export const fetchRecentPostsByShelter = async (
 		.all<ShelterPostSummary>();
 
 	return results;
+};
+
+export const createCommentForPost = async (
+	db: Database,
+	{
+		postId,
+		authorName,
+		content,
+	}: {
+		postId: string;
+		authorName: string;
+		content: string;
+	},
+): Promise<NewCommentResult> => {
+	const createdAt = new Date().toISOString();
+
+	const result = await db
+		.prepare(
+			`
+      INSERT INTO comments (post_id, author_name, content, created_at)
+      VALUES (?, ?, ?, ?)
+      RETURNING
+        id,
+        post_id AS postId,
+        author_name AS authorName,
+        content,
+        created_at AS createdAt
+    `,
+		)
+		.bind(postId, authorName, content, createdAt)
+		.first<NewCommentResult>();
+
+	if (!result) {
+		throw new Error("Insert failed");
+	}
+
+	return {
+		...result,
+		id: String(result.id),
+		postId: String(result.postId),
+	};
 };
