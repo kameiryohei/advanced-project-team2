@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import type { components, paths } from "../schema/schema";
 import { createMiddleware } from "../middleware/middleware";
+import type { components, paths } from "../schema/schema";
 import type { Bindings } from "./db/database";
 import { dbConnect } from "./db/database";
 import { shelterRepository, videoRepository } from "./repositories";
@@ -134,6 +134,38 @@ app.post("/r2/test-video/:key", async (c) => {
 		}
 
 		console.error("R2 video put failed", error);
+		const message = error instanceof Error ? error.message : "Unknown error";
+		return c.json({ error: message }, 500);
+	}
+});
+
+app.post("/posts/:id/comments", async (c) => {
+	const postId = c.req.param("id"); // ← 数値にしない！
+
+	const db = dbConnect(c.env);
+
+	try {
+		const body = await c.req.json();
+		const { authorName, content } = body;
+
+		if (!authorName || !content) {
+			return c.json({ error: "authorName と content は必須です" }, 400);
+		}
+
+		const newComment = await shelterRepository.createCommentForPost(db, {
+			postId,
+			authorName,
+			content,
+		});
+
+		return c.json(
+			{
+				comment: newComment,
+			},
+			201,
+		);
+	} catch (error) {
+		console.error("Insert comment failed", error);
 		const message = error instanceof Error ? error.message : "Unknown error";
 		return c.json({ error: message }, 500);
 	}
