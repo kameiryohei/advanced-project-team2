@@ -24,7 +24,7 @@ interface Report {
 	datetime: string;
 	address: string;
 	details: string;
-	status: "reported" | "progress" | "completed";
+	status: "unassigned" | "in-progress" | "resolved";
 	reporter: string;
 	attachment?: string;
 	responder?: string;
@@ -48,7 +48,7 @@ interface ShelterDashboardProps {
 const mockReports: Report[] = [
 	{
 		id: "1",
-		datetime: "2025/9/9 15:21",
+		datetime: "2025/11/18 15:21",
 		address: "愛知県塩釜口501番地",
 		details: "家が崩れてます",
 		status: "in-progress",
@@ -60,7 +60,7 @@ const mockReports: Report[] = [
 	},
 	{
 		id: "2",
-		datetime: "2025/9/9 16:45",
+		datetime: "2025/11/18 16:45",
 		address: "愛知県名古屋市中区",
 		details: "道路に倒木があり通行不可",
 		status: "unassigned",
@@ -75,34 +75,34 @@ const mockMessages: { [key: string]: Message[] } = {
 	"1": [
 		{
 			id: "1",
-			time: "2025/9/10 15:21",
+			time: "2025/11/18 15:30",
 			responder: "警察",
 			message: "道はなにで塞がれてますか？",
-			status: "経過報告",
+			status: "対応中",
 			isResponder: true,
 		},
 		{
 			id: "2",
-			time: "2025/9/11 15:21",
+			time: "2025/11/18 16:00",
 			responder: "山田",
 			message: "大きな石で塞がれてます",
-			status: "経過報告",
+			status: "対応中",
 			isResponder: false,
 		},
 		{
 			id: "3",
-			time: "2025/9/12 15:21",
+			time: "2025/11/18 16:30",
 			responder: "警察",
 			message: "1日後に対応予定",
-			status: "経過報告",
+			status: "対応中",
 			isResponder: true,
 		},
 		{
 			id: "4",
-			time: "2025/9/13 15:21",
+			time: "2025/11/18 17:00",
 			responder: "警察",
 			message: "応急処置してます。後日全ての石を撤去予定",
-			status: "経過報告",
+			status: "解決済み",
 			isResponder: true,
 		},
 	],
@@ -116,15 +116,12 @@ const shelterData = {
 
 const getStatusColor = (status: string) => {
 	switch (status) {
-		case "reported":
-		case "通報":
-			return "bg-destructive text-destructive-foreground";
-		case "progress":
-		case "経過報告":
-			return "bg-secondary text-secondary-foreground";
-		case "completed":
-		case "完了報告":
-			return "bg-chart-1 text-foreground";
+		case "unassigned":
+			return "bg-destructive text-destructive-foreground"; // 赤色（未対応）
+		case "in-progress":
+			return "bg-secondary text-secondary-foreground"; // オレンジ色（対応中）
+		case "resolved":
+			return "bg-chart-1 text-foreground"; // 緑色（解決済み）
 		default:
 			return "bg-muted text-muted-foreground";
 	}
@@ -132,7 +129,7 @@ const getStatusColor = (status: string) => {
 
 export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 	const [selectedReport, setSelectedReport] = useState<string | null>(null);
-	const [isOnline, setIsOnline] = useState(false);
+	const [isOnline] = useState(false);
 	const [showReportForm, setShowReportForm] = useState(false);
 	const [reports, setReports] = useState<Report[]>(mockReports);
 	const [messages, setMessages] = useState<{ [key: string]: Message[] }>(
@@ -351,11 +348,11 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 													<td className="p-4">{report.details}</td>
 													<td className="p-4">
 														<Badge className={getStatusColor(report.status)}>
-															{report.status === "reported"
-																? "通報"
-																: report.status === "progress"
-																	? "経過報告"
-																	: "完了報告"}
+															{report.status === "unassigned"
+																? "未対応"
+																: report.status === "in-progress"
+																	? "対応中"
+																	: "解決済み"}
 														</Badge>
 													</td>
 													<td className="p-4">{report.reporter}</td>

@@ -13,7 +13,7 @@ interface Report {
 	datetime: string;
 	address: string;
 	details: string;
-	status: "reported" | "progress" | "completed";
+	status: "unassigned" | "in-progress" | "resolved";
 	reporter: string;
 	attachment?: string;
 	responder?: string;
@@ -56,15 +56,13 @@ export function ReportMap({ reports, onReportSelect }: ReportMapProps) {
 	const getIconByStatus = (status: string) => {
 		switch (status) {
 			case "unassigned":
-				return createCustomIcon("#ef4444");
+				return createCustomIcon("#ef4444"); // 赤色（未対応）
 			case "in-progress":
-				return createCustomIcon("#f59e0b");
-			case "monitoring":
-				return createCustomIcon("#3b82f6");
+				return createCustomIcon("#f59e0b"); // オレンジ色（対応中）
 			case "resolved":
-				return createCustomIcon("#10b981");
+				return createCustomIcon("#10b981"); // 緑色（解決済み）
 			default:
-				return createCustomIcon("#6b7280");
+				return createCustomIcon("#6b7280"); // グレー（不明）
 		}
 	};
 
@@ -74,8 +72,6 @@ export function ReportMap({ reports, onReportSelect }: ReportMapProps) {
 				return "未対応";
 			case "in-progress":
 				return "対応中";
-			// case "monitoring":
-			// 	return "監視中";
 			case "resolved":
 				return "解決済み";
 			default:
@@ -115,10 +111,10 @@ export function ReportMap({ reports, onReportSelect }: ReportMapProps) {
 						url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
 					/>
 					{reportsWithLocation.map((report) => (
-						<Marker
-							key={report.id}
-							position={[report.latitude!, report.longitude!]}
-							icon={getIconByStatus(report.status)}
+					<Marker
+						key={report.id}
+						position={[report.latitude as number, report.longitude as number]}
+						icon={getIconByStatus(report.status)}
 							eventHandlers={{
 								click: () => onReportSelect(report.id),
 							}}
@@ -144,9 +140,7 @@ export function ReportMap({ reports, onReportSelect }: ReportMapProps) {
 														? "text-green-600"
 														: report.status === "in-progress"
 															? "text-orange-600"
-															: report.status === "monitoring"
-																? "text-blue-600"
-																: "text-red-600"
+															: "text-red-600"
 												}
 											>
 												{getStatusLabel(report.status)}
@@ -157,10 +151,11 @@ export function ReportMap({ reports, onReportSelect }: ReportMapProps) {
 											{report.datetime}
 										</p>
 									</div>
-									<button
-										className="mt-2 px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
-										onClick={() => onReportSelect(report.id)}
-									>
+								<button
+									type="button"
+									className="mt-2 px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+									onClick={() => onReportSelect(report.id)}
+								>
 										詳細表示
 									</button>
 								</div>

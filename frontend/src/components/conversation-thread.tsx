@@ -39,7 +39,7 @@ interface Report {
 	datetime: string;
 	address: string;
 	details: string;
-	status: "reported" | "progress" | "completed";
+	status: "unassigned" | "in-progress" | "resolved";
 	reporter: string;
 	attachment?: string;
 	responder?: string;
@@ -82,6 +82,16 @@ function ReportLocationMap({ report }: { report: Report }) {
 
 const getStatusColor = (status: string) => {
 	switch (status) {
+		case "unassigned":
+		case "未対応":
+			return "bg-destructive text-destructive-foreground"; // 赤色（未対応）
+		case "in-progress":
+		case "対応中":
+			return "bg-secondary text-secondary-foreground"; // オレンジ色（対応中）
+		case "resolved":
+		case "解決済み":
+			return "bg-chart-1 text-white"; // 緑色（解決済み）
+		// 古い形式との互換性のため残す
 		case "reported":
 		case "通報":
 			return "bg-destructive text-destructive-foreground";
@@ -90,7 +100,7 @@ const getStatusColor = (status: string) => {
 			return "bg-secondary text-secondary-foreground";
 		case "completed":
 		case "完了報告":
-			return "bg-chart-1 text-foreground";
+			return "bg-chart-1 text-white";
 		default:
 			return "bg-muted text-muted-foreground";
 	}
@@ -131,7 +141,7 @@ export function ConversationThread({
 				.replace(",", ""),
 			responder: responderName,
 			message: newMessage,
-			status: newStatus || "経過報告",
+			status: newStatus || "対応中",
 			isResponder: responderName !== report.reporter,
 		};
 
@@ -143,9 +153,9 @@ export function ConversationThread({
 		// Update report status if new status is provided
 		if (newStatus && newStatus !== report.status) {
 			const statusMap: { [key: string]: Report["status"] } = {
-				通報: "reported",
-				経過報告: "progress",
-				完了報告: "completed",
+				未対応: "unassigned",
+				対応中: "in-progress",
+				解決済み: "resolved",
 			};
 			if (statusMap[newStatus]) {
 				onUpdateReportStatus(report.id, statusMap[newStatus]);
@@ -178,11 +188,11 @@ export function ConversationThread({
 							</div>
 						</div>
 						<Badge className={getStatusColor(report.status)}>
-							{report.status === "reported"
-								? "通報"
-								: report.status === "progress"
-									? "経過報告"
-									: "完了報告"}
+							{report.status === "unassigned"
+								? "未対応"
+								: report.status === "in-progress"
+									? "対応中"
+									: "解決済み"}
 						</Badge>
 					</div>
 				</CardHeader>
@@ -347,9 +357,9 @@ export function ConversationThread({
 												<SelectValue placeholder="ステータスを選択（任意）" />
 											</SelectTrigger>
 											<SelectContent>
-												<SelectItem value="通報">通報</SelectItem>
-												<SelectItem value="経過報告">経過報告</SelectItem>
-												<SelectItem value="完了報告">完了報告</SelectItem>
+												<SelectItem value="未対応">未対応</SelectItem>
+												<SelectItem value="対応中">対応中</SelectItem>
+												<SelectItem value="解決済み">解決済み</SelectItem>
 											</SelectContent>
 										</Select>
 									</div>

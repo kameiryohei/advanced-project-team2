@@ -32,7 +32,7 @@ interface ReportData {
 	datetime: string;
 	address: string;
 	details: string;
-	status: string;
+	status: "unassigned" | "in-progress" | "resolved";
 	reporter: string;
 	attachment?: string;
 	responder: string;
@@ -225,12 +225,12 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 			.replace(/\//g, "/")
 			.replace(",", "");
 
-		const reportData = {
+		const reportData: ReportData = {
 			id: Date.now().toString(),
 			datetime: formattedDatetime,
 			address: formData.address,
 			details: formData.details,
-			status: formData.status,
+			status: "unassigned", // 新規報告は未対応として作成
 			reporter: formData.reporter,
 			attachment: formData.attachment ? formData.attachment.name : undefined,
 			responder: formData.responder,
