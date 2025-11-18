@@ -86,6 +86,36 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 	const reporterId = useId();
 	const attachmentId = useId();
 
+	// バックエンドAPI経由での逆ジオコーディング関数
+	const reverseGeocode = async (
+		latitude: number,
+		longitude: number,
+	): Promise<string | null> => {
+		try {
+			const response = await fetch(
+				`http://localhost:8787/api/geocode/reverse?lat=${latitude}&lon=${longitude}`,
+				{
+					method: "GET",
+				},
+			);
+
+			if (!response.ok) {
+				throw new Error("住所の取得に失敗しました");
+			}
+
+			const data = await response.json();
+
+			if (data.address) {
+				return data.address;
+			}
+
+			return null;
+		} catch (error) {
+			console.error("逆ジオコーディングエラー:", error);
+			return null;
+		}
+	};
+
 	// 位置情報のアップロード関数
 	const uploadLocation = async (latitude: number, longitude: number) => {
 		try {
@@ -121,12 +151,28 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 		}
 
 		navigator.geolocation.getCurrentPosition(
-			(position) => {
+			async (position) => {
 				const { latitude, longitude } = position.coords;
 				setCoords({ latitude, longitude });
 				setGpsStatus(
 					`緯度: ${latitude.toFixed(6)}, 経度: ${longitude.toFixed(6)}`,
 				);
+
+				// 住所を取得してフォームに自動入力
+				setGpsStatus("住所を取得中...");
+				const address = await reverseGeocode(latitude, longitude);
+
+				if (address) {
+					setFormData((prev) => ({ ...prev, address }));
+					setGpsStatus(
+						`住所: ${address}\n緯度: ${latitude.toFixed(6)}, 経度: ${longitude.toFixed(6)}`,
+					);
+				} else {
+					setGpsStatus(
+						`住所の取得に失敗しました\n緯度: ${latitude.toFixed(6)}, 経度: ${longitude.toFixed(6)}`,
+					);
+				}
+
 				// 位置情報を自動的にアップロード
 				uploadLocation(latitude, longitude);
 			},
@@ -146,6 +192,8 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 	const handleClearLocation = () => {
 		setCoords(null);
 		setGpsStatus("");
+		// 住所フィールドもクリア
+		setFormData((prev) => ({ ...prev, address: "" }));
 	};
 
 	const handleSubmit = async (e: React.FormEvent) => {

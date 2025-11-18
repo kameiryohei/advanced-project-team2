@@ -2,7 +2,10 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "backend",
 	"main": "src/index.ts",
-	"compatibility_date": "2025-10-08"
+	"compatibility_date": "2025-10-08",
+	"vars": {
+		"YAHOO_MAPS_API_KEY": "dj00aiZpPVY5REM5aFpuTTU3VCZzPWNvbnN1bWVyc2VjcmV0Jng9MzU-"
+	}
 	// "compatibility_flags": [
 	//   "nodejs_compat"
 	// ],
