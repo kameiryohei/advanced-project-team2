@@ -48,8 +48,17 @@ interface ReportFormProps {
 }
 
 export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
+	// 日本時間（JST）でdatetime-localフィールドを初期化する関数
+	const getJSTDatetimeString = () => {
+		const now = new Date();
+		// 日本時間（UTC+9）に変換
+		const jstOffset = 9 * 60 * 60 * 1000; // 9時間をミリ秒で
+		const jstDate = new Date(now.getTime() + jstOffset);
+		return jstDate.toISOString().slice(0, 16);
+	};
+
 	const [formData, setFormData] = useState({
-		datetime: new Date().toISOString().slice(0, 16),
+		datetime: getJSTDatetimeString(),
 		address: "",
 		details: "",
 		status: "unassigned",
@@ -200,14 +209,18 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 		e.preventDefault();
 		setIsSubmitting(true);
 
-		// Format datetime to match the expected format
-		const formattedDatetime = new Date(formData.datetime)
+		// Format datetime to match the expected format (JST)
+		const inputDate = new Date(formData.datetime);
+		// datetime-localの値は既にローカル時刻として解釈されるため、
+		// 日本時間として扱う
+		const formattedDatetime = inputDate
 			.toLocaleString("ja-JP", {
 				year: "numeric",
 				month: "2-digit",
 				day: "2-digit",
 				hour: "2-digit",
 				minute: "2-digit",
+				timeZone: "Asia/Tokyo",
 			})
 			.replace(/\//g, "/")
 			.replace(",", "");
