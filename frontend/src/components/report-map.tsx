@@ -100,11 +100,11 @@ export function ReportMap({ reports, onReportSelect }: ReportMapProps) {
 
 	return (
 		<>
-			<div className="h-96 w-full rounded-lg overflow-hidden border">
+			<div className="h-96 w-full rounded-lg overflow-hidden border relative z-10">
 				<MapContainer
 					center={[centerLat, centerLng]}
 					zoom={12}
-					style={{ height: "100%", width: "100%" }}
+					style={{ height: "100%", width: "100%", zIndex: 1 }}
 				>
 					<TileLayer
 						attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
