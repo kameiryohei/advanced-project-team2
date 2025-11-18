@@ -4,7 +4,9 @@ import {
 	AlertTriangle,
 	Calendar,
 	MapPin,
+	Navigation,
 	Square,
+	Trash2,
 	Upload,
 	User,
 	Video,
@@ -25,9 +27,24 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
+interface ReportData {
+	id: string;
+	datetime: string;
+	address: string;
+	details: string;
+	status: string;
+	reporter: string;
+	attachment?: string;
+	responder: string;
+	location?: {
+		latitude: number;
+		longitude: number;
+	} | null;
+}
+
 interface ReportFormProps {
 	onClose: () => void;
-	onSubmit: (report: any) => void;
+	onSubmit: (report: ReportData) => void;
 }
 
 export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
@@ -49,6 +66,14 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 		null,
 	);
 
+	// 位置情報関連の状態管理
+	const [allowGps] = useState(true);
+	const [coords, setCoords] = useState<{
+		latitude: number;
+		longitude: number;
+	} | null>(null);
+	const [gpsStatus, setGpsStatus] = useState("");
+
 	const [videoPreview, setVideoPreview] = useState<string | null>(null);
 	const [recordingDuration, setRecordingDuration] = useState(0);
 	const videoRef = useRef<HTMLVideoElement>(null);
@@ -60,6 +85,68 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 	const detailsId = useId();
 	const reporterId = useId();
 	const attachmentId = useId();
+
+	// 位置情報のアップロード関数
+	const uploadLocation = async (latitude: number, longitude: number) => {
+		try {
+			const response = await fetch("http://localhost:8787/api/location", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					latitude,
+					longitude,
+				}),
+			});
+
+			if (!response.ok) {
+				throw new Error("位置情報の送信に失敗しました");
+			}
+
+			const result = await response.json();
+			console.log("位置情報が送信されました:", result);
+		} catch (error) {
+			console.error("位置情報送信エラー:", error);
+		}
+	};
+
+	// 位置情報取得処理
+	const handleGetLocation = () => {
+		setGpsStatus("位置情報を取得中...");
+
+		if (!navigator.geolocation) {
+			setGpsStatus("お使いのブラウザは位置情報に対応していません");
+			return;
+		}
+
+		navigator.geolocation.getCurrentPosition(
+			(position) => {
+				const { latitude, longitude } = position.coords;
+				setCoords({ latitude, longitude });
+				setGpsStatus(
+					`緯度: ${latitude.toFixed(6)}, 経度: ${longitude.toFixed(6)}`,
+				);
+				// 位置情報を自動的にアップロード
+				uploadLocation(latitude, longitude);
+			},
+			(error) => {
+				console.error("位置情報取得エラー:", error);
+				setGpsStatus("位置情報の取得に失敗しました");
+			},
+			{
+				enableHighAccuracy: true,
+				timeout: 10000,
+				maximumAge: 0,
+			},
+		);
+	};
+
+	// 位置情報のクリア処理
+	const handleClearLocation = () => {
+		setCoords(null);
+		setGpsStatus("");
+	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -86,12 +173,17 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 			reporter: formData.reporter,
 			attachment: formData.attachment ? formData.attachment.name : undefined,
 			responder: formData.responder,
+			location: coords, // 位置情報を含める
 		};
 
 		// Simulate API call
 		await new Promise((resolve) => setTimeout(resolve, 1000));
 
 		onSubmit(reportData);
+
+		// フォームをリセット（位置情報も含める）
+		handleClearLocation();
+
 		setIsSubmitting(false);
 		onClose();
 	};
@@ -335,6 +427,55 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 								className="w-full"
 							/>
 						</div>
+
+						{/* Location Section */}
+						{allowGps && (
+							<div className="space-y-2">
+								<Label className="flex items-center gap-2">
+									<Navigation className="h-4 w-4" />
+									位置情報
+								</Label>
+								<div className="space-y-3">
+									{coords ? (
+										<div className="border rounded-lg p-4 bg-muted/50 space-y-2">
+											<div className="flex items-center justify-between">
+												<div className="text-sm">
+													<p className="font-medium">
+														現在位置が取得されました
+													</p>
+													<p className="text-muted-foreground">{gpsStatus}</p>
+												</div>
+												<Button
+													type="button"
+													variant="ghost"
+													size="sm"
+													onClick={handleClearLocation}
+												>
+													<Trash2 className="h-4 w-4" />
+												</Button>
+											</div>
+										</div>
+									) : (
+										<div className="space-y-2">
+											<Button
+												type="button"
+												variant="outline"
+												onClick={handleGetLocation}
+												className="w-full"
+											>
+												<MapPin className="h-4 w-4 mr-2" />
+												位置情報を取得
+											</Button>
+											{gpsStatus && (
+												<p className="text-sm text-muted-foreground">
+													{gpsStatus}
+												</p>
+											)}
+										</div>
+									)}
+								</div>
+							</div>
+						)}
 
 						{/* Details */}
 						<div className="space-y-2">
@@ -622,13 +763,11 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 															if (stream) {
 																console.log(
 																	"Debug: Stream tracks:",
-																	stream
-																		.getTracks()
-																		.map((t) => ({
-																			kind: t.kind,
-																			enabled: t.enabled,
-																			readyState: t.readyState,
-																		})),
+																	stream.getTracks().map((t) => ({
+																		kind: t.kind,
+																		enabled: t.enabled,
+																		readyState: t.readyState,
+																	})),
 																);
 															}
 														}}
