@@ -39,7 +39,7 @@ interface Report {
 	datetime: string;
 	address: string;
 	details: string;
-	status: "unassigned" | "in-progress" | "monitoring" | "resolved";
+	status: "reported" | "progress" | "completed";
 	reporter: string;
 	attachment?: string;
 	responder?: string;
@@ -82,18 +82,14 @@ function ReportLocationMap({ report }: { report: Report }) {
 
 const getStatusColor = (status: string) => {
 	switch (status) {
-		case "unassigned":
-		case "未対応":
+		case "reported":
+		case "通報":
 			return "bg-destructive text-destructive-foreground";
-		case "in-progress":
-		case "指示あり":
+		case "progress":
 		case "経過報告":
 			return "bg-secondary text-secondary-foreground";
-		case "monitoring":
-		case "様子見中":
-			return "bg-chart-2 text-foreground";
-		case "resolved":
-		case "報告":
+		case "completed":
+		case "完了報告":
 			return "bg-chart-1 text-foreground";
 		default:
 			return "bg-muted text-muted-foreground";
@@ -143,10 +139,9 @@ export function ConversationThread({
 		// Update report status if new status is provided
 		if (newStatus && newStatus !== report.status) {
 			const statusMap: { [key: string]: Report["status"] } = {
-				指示あり: "in-progress",
-				経過報告: "in-progress",
-				様子見中: "monitoring",
-				報告: "resolved",
+				通報: "reported",
+				経過報告: "progress",
+				完了報告: "completed",
 			};
 			if (statusMap[newStatus]) {
 				onUpdateReportStatus(report.id, statusMap[newStatus]);
@@ -179,13 +174,11 @@ export function ConversationThread({
 							</div>
 						</div>
 						<Badge className={getStatusColor(report.status)}>
-							{report.status === "unassigned"
-								? "未対応"
-								: report.status === "in-progress"
-									? "対応中"
-									: report.status === "monitoring"
-										? "様子見中"
-										: "解決済み"}
+							{report.status === "reported"
+								? "通報"
+								: report.status === "progress"
+									? "経過報告"
+									: "完了報告"}
 						</Badge>
 					</div>
 				</CardHeader>
@@ -322,10 +315,9 @@ export function ConversationThread({
 												<SelectValue placeholder="ステータスを選択（任意）" />
 											</SelectTrigger>
 											<SelectContent>
-												<SelectItem value="指示あり">指示あり</SelectItem>
+												<SelectItem value="通報">通報</SelectItem>
 												<SelectItem value="経過報告">経過報告</SelectItem>
-												<SelectItem value="様子見中">様子見中</SelectItem>
-												<SelectItem value="報告">完了報告</SelectItem>
+												<SelectItem value="完了報告">完了報告</SelectItem>
 											</SelectContent>
 										</Select>
 									</div>

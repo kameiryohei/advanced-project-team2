@@ -24,7 +24,7 @@ interface Report {
 	datetime: string;
 	address: string;
 	details: string;
-	status: "unassigned" | "in-progress" | "monitoring" | "resolved";
+	status: "reported" | "progress" | "completed";
 	reporter: string;
 	attachment?: string;
 	responder?: string;
@@ -78,7 +78,7 @@ const mockMessages: { [key: string]: Message[] } = {
 			time: "2025/9/10 15:21",
 			responder: "警察",
 			message: "道はなにで塞がれてますか？",
-			status: "指示あり",
+			status: "経過報告",
 			isResponder: true,
 		},
 		{
@@ -94,7 +94,7 @@ const mockMessages: { [key: string]: Message[] } = {
 			time: "2025/9/12 15:21",
 			responder: "警察",
 			message: "1日後に対応予定",
-			status: "報告",
+			status: "経過報告",
 			isResponder: true,
 		},
 		{
@@ -102,7 +102,7 @@ const mockMessages: { [key: string]: Message[] } = {
 			time: "2025/9/13 15:21",
 			responder: "警察",
 			message: "応急処置してます。後日全ての石を撤去予定",
-			status: "様子見中",
+			status: "経過報告",
 			isResponder: true,
 		},
 	],
@@ -116,18 +116,14 @@ const shelterData = {
 
 const getStatusColor = (status: string) => {
 	switch (status) {
-		case "unassigned":
-		case "未対応":
+		case "reported":
+		case "通報":
 			return "bg-destructive text-destructive-foreground";
-		case "in-progress":
-		case "指示あり":
+		case "progress":
 		case "経過報告":
 			return "bg-secondary text-secondary-foreground";
-		case "monitoring":
-		case "様子見中":
-			return "bg-chart-2 text-foreground";
-		case "resolved":
-		case "報告":
+		case "completed":
+		case "完了報告":
 			return "bg-chart-1 text-foreground";
 		default:
 			return "bg-muted text-muted-foreground";
@@ -355,13 +351,11 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 													<td className="p-4">{report.details}</td>
 													<td className="p-4">
 														<Badge className={getStatusColor(report.status)}>
-															{report.status === "unassigned"
-																? "未対応"
-																: report.status === "in-progress"
-																	? "対応中"
-																	: report.status === "monitoring"
-																		? "様子見中"
-																		: "解決済み"}
+															{report.status === "reported"
+																? "通報"
+																: report.status === "progress"
+																	? "経過報告"
+																	: "完了報告"}
 														</Badge>
 													</td>
 													<td className="p-4">{report.reporter}</td>

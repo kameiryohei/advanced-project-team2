@@ -13,7 +13,7 @@ interface Report {
 	datetime: string;
 	address: string;
 	details: string;
-	status: "unassigned" | "in-progress" | "monitoring" | "resolved";
+	status: "reported" | "progress" | "completed";
 	reporter: string;
 	attachment?: string;
 	responder?: string;
