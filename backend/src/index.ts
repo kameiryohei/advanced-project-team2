@@ -12,7 +12,9 @@ const app = new Hono<{ Bindings: Bindings }>();
 app.use("*", (c, next) => {
 	const frontendOrigin = c.env.FRONTEND_ORIGIN;
 	const middleware = createMiddleware({
-		additionalOrigins: frontendOrigin ? [frontendOrigin] : ["http://localhost:5173", "http://localhost:3000"],
+		additionalOrigins: frontendOrigin
+			? [frontendOrigin]
+			: ["http://localhost:5173", "http://localhost:3000"],
 	});
 	return middleware(c, next);
 });
@@ -46,7 +48,7 @@ app.get("/api/geocode/reverse", async (c) => {
 			throw new Error("Yahoo APIからのレスポンスが失敗しました");
 		}
 
-		const data = await response.json() as any;
+		const data = (await response.json()) as any;
 
 		if (data.Feature && data.Feature.length > 0) {
 			const address = data.Feature[0].Property.Address;
