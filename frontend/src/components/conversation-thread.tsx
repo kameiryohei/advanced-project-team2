@@ -10,7 +10,7 @@ import {
 	User,
 } from "lucide-react";
 import type React from "react";
-import { useState, useId } from "react";
+import { useId, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -230,7 +230,7 @@ export function ConversationThread({
 						</div>
 
 						{/* 添付動画の表示 */}
-						{report.attachment?.includes('video') && (
+						{report.attachment?.includes("video") && (
 							<div>
 								<h4 className="font-medium text-sm text-muted-foreground mb-2">
 									添付動画
@@ -241,14 +241,15 @@ export function ConversationThread({
 										className="w-full max-h-80 object-cover"
 										aria-label="報告に添付された動画"
 									>
-										<source src={`/api/attachments/${report.id}`} type="video/webm" />
-										<source src={`/api/attachments/${report.id}`} type="video/mp4" />
-										<track
-											kind="captions"
-											src=""
-											srcLang="ja"
-											label="日本語"
+										<source
+											src={`/api/attachments/${report.id}`}
+											type="video/webm"
 										/>
+										<source
+											src={`/api/attachments/${report.id}`}
+											type="video/mp4"
+										/>
+										<track kind="captions" src="" srcLang="ja" label="日本語" />
 										お使いのブラウザは動画再生に対応していません。
 									</video>
 									<div className="p-3 bg-background border-t text-sm text-muted-foreground">

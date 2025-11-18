@@ -111,10 +111,10 @@ export function ReportMap({ reports, onReportSelect }: ReportMapProps) {
 						url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
 					/>
 					{reportsWithLocation.map((report) => (
-					<Marker
-						key={report.id}
-						position={[report.latitude as number, report.longitude as number]}
-						icon={getIconByStatus(report.status)}
+						<Marker
+							key={report.id}
+							position={[report.latitude as number, report.longitude as number]}
+							icon={getIconByStatus(report.status)}
 							eventHandlers={{
 								click: () => onReportSelect(report.id),
 							}}
@@ -151,11 +151,11 @@ export function ReportMap({ reports, onReportSelect }: ReportMapProps) {
 											{report.datetime}
 										</p>
 									</div>
-								<button
-									type="button"
-									className="mt-2 px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
-									onClick={() => onReportSelect(report.id)}
-								>
+									<button
+										type="button"
+										className="mt-2 px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+										onClick={() => onReportSelect(report.id)}
+									>
 										詳細表示
 									</button>
 								</div>
