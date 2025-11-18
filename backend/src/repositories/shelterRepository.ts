@@ -96,10 +96,12 @@ export const fetchRecentPostsByShelter = async (
 export const createCommentForPost = async (
 	db: Database,
 	{
+		commentId,
 		postId,
 		authorName,
 		content,
 	}: {
+		commentId: string;
 		postId: string;
 		authorName: string;
 		content: string;
@@ -110,8 +112,8 @@ export const createCommentForPost = async (
 	const result = await db
 		.prepare(
 			`
-      INSERT INTO comments (post_id, author_name, content, created_at)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO comments (id, post_id, author_name, content, created_at)
+      VALUES (?, ?, ?, ?, ?)
       RETURNING
         id,
         post_id AS postId,
@@ -120,7 +122,7 @@ export const createCommentForPost = async (
         created_at AS createdAt
     `,
 		)
-		.bind(postId, authorName, content, createdAt)
+		.bind(commentId, postId, authorName, content, createdAt)
 		.first<NewCommentResult>();
 
 	if (!result) {
