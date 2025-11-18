@@ -4,6 +4,7 @@ import type { components, paths } from "../schema/schema";
 import type { Bindings } from "./db/database";
 import { dbConnect } from "./db/database";
 import { shelterRepository, videoRepository } from "./repositories";
+import { v4 as uuidv4 } from "uuid";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -152,7 +153,9 @@ app.post("/posts/:id/comments", async (c) => {
 			return c.json({ error: "authorName と content は必須です" }, 400);
 		}
 
+		const commentId = uuidv4();
 		const newComment = await shelterRepository.createCommentForPost(db, {
+			commentId,
 			postId,
 			authorName,
 			content,
