@@ -36,7 +36,7 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 
 	/* 11/04 追加部分ここから */
 	// 状態管理
-	const [allowGps, setAllowGps] = useState(true);
+	const [allowGps] = useState(true);
 	const [coords, setCoords] = useState<{
 		latitude: number;
 		longitude: number;
