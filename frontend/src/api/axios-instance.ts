@@ -1,4 +1,4 @@
-import Axios, { type AxiosRequestConfig, type AxiosError } from "axios";
+import Axios, { type AxiosError, type AxiosRequestConfig } from "axios";
 
 export const AXIOS_INSTANCE = Axios.create({
 	baseURL: "http://localhost:8787",
@@ -15,7 +15,7 @@ AXIOS_INSTANCE.interceptors.request.use(
 	},
 	(error) => {
 		return Promise.reject(error);
-	}
+	},
 );
 
 AXIOS_INSTANCE.interceptors.response.use(
@@ -24,9 +24,12 @@ AXIOS_INSTANCE.interceptors.response.use(
 		return response;
 	},
 	(error: AxiosError) => {
-		console.error(`API Error: ${error.response?.status} ${error.config?.url}`, error.response?.data);
+		console.error(
+			`API Error: ${error.response?.status} ${error.config?.url}`,
+			error.response?.data,
+		);
 		return Promise.reject(error);
-	}
+	},
 );
 
 export const axiosInstance = <T>(

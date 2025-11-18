@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useId, useState } from "react";
+import type { CreateCommentRequest } from "@/api/generated/model";
+import { usePostPostsIdComments } from "@/api/generated/team2API";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,8 +26,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { usePostPostsIdComments } from "@/api/generated/team2API";
-import type { CreateCommentRequest } from "@/api/generated/model";
 
 interface Message {
 	id: string;
@@ -147,7 +147,7 @@ export function ConversationThread({
 				data: commentData,
 			});
 
-			console.log('コメントが正常に作成されました:', result);
+			console.log("コメントが正常に作成されました:", result);
 
 			// 従来のコールバックも呼び出し（既存の機能との互換性）
 			const messageData = {
@@ -184,10 +184,9 @@ export function ConversationThread({
 			setNewMessage("");
 			setNewStatus("");
 			setIsSubmitting(false);
-
 		} catch (error) {
-			console.error('コメントの作成に失敗しました:', error);
-			alert('コメントの投稿に失敗しました。もう一度お試しください。');
+			console.error("コメントの作成に失敗しました:", error);
+			alert("コメントの投稿に失敗しました。もう一度お試しください。");
 			setIsSubmitting(false);
 		}
 	};

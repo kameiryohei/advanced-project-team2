@@ -9,6 +9,11 @@ import {
 	Users,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import {
+	useGetShelters,
+	useGetSheltersId,
+	useGetSheltersIdPosts,
+} from "@/api/generated/team2API";
 import { ConversationThread } from "@/components/conversation-thread";
 import { ReportForm } from "@/components/report-form";
 import { ReportMap } from "@/components/report-map";
@@ -18,7 +23,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { syncService } from "@/lib/sync-service";
-import { useGetShelters, useGetSheltersId, useGetSheltersIdPosts } from "@/api/generated/team2API";
 
 interface Report {
 	id: string;
@@ -140,19 +144,21 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 	// APIクライアントの初期化
 	const currentShelterId = Number.parseInt(shelterId || "1", 10);
 	const { data: sheltersData, isLoading: isLoadingShelters } = useGetShelters();
-	const { data: shelterDetails, isLoading: isLoadingShelterDetails } = useGetSheltersId(currentShelterId);
-	const { data: shelterPosts, isLoading: isLoadingShelterPosts } = useGetSheltersIdPosts(currentShelterId);
+	const { data: shelterDetails, isLoading: isLoadingShelterDetails } =
+		useGetSheltersId(currentShelterId);
+	const { data: shelterPosts, isLoading: isLoadingShelterPosts } =
+		useGetSheltersIdPosts(currentShelterId);
 
 	// APIデータのログ出力
 	useEffect(() => {
 		if (sheltersData) {
-			console.log('避難所一覧データ:', sheltersData);
+			console.log("避難所一覧データ:", sheltersData);
 		}
 		if (shelterDetails) {
-			console.log('避難所詳細データ:', shelterDetails);
+			console.log("避難所詳細データ:", shelterDetails);
 		}
 		if (shelterPosts) {
-			console.log('避難所投稿データ:', shelterPosts);
+			console.log("避難所投稿データ:", shelterPosts);
 		}
 	}, [sheltersData, shelterDetails, shelterPosts]);
 
@@ -263,10 +269,16 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 						</p>
 						{/* API データのデバッグ情報 */}
 						<div className="text-xs text-green-600 mt-1">
-							API接続状況: 
-							{sheltersData ? ` 避難所一覧(${sheltersData.shelterCount}件)` : ' 避難所一覧(未取得)'}
-							{shelterDetails ? ` | 詳細(${shelterDetails.name})` : ' | 詳細(未取得)'}
-							{shelterPosts ? ` | 投稿(${shelterPosts.posts.length}件)` : ' | 投稿(未取得)'}
+							API接続状況:
+							{sheltersData
+								? ` 避難所一覧(${sheltersData.shelterCount}件)`
+								: " 避難所一覧(未取得)"}
+							{shelterDetails
+								? ` | 詳細(${shelterDetails.name})`
+								: " | 詳細(未取得)"}
+							{shelterPosts
+								? ` | 投稿(${shelterPosts.posts.length}件)`
+								: " | 投稿(未取得)"}
 						</div>
 					</div>
 				</div>

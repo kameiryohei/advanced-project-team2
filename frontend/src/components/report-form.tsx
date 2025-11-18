@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useId, useRef, useState } from "react";
+import type { CreatePostRequest } from "@/api/generated/model";
+import { usePostPosts } from "@/api/generated/team2API";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,8 +28,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { usePostPosts } from "@/api/generated/team2API";
-import type { CreatePostRequest } from "@/api/generated/model";
 
 interface ReportData {
 	id: string;
@@ -106,7 +106,7 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 	): Promise<string | null> => {
 		try {
 			console.log(`逆ジオコーディング開始: lat=${latitude}, lon=${longitude}`);
-			
+
 			const response = await fetch(
 				`http://localhost:8787/api/geocode/reverse?lat=${latitude}&lon=${longitude}`,
 				{
@@ -122,7 +122,9 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 			if (!response.ok) {
 				const errorText = await response.text();
 				console.error("APIエラーレスポンス:", errorText);
-				throw new Error(`住所の取得に失敗しました (${response.status}): ${errorText}`);
+				throw new Error(
+					`住所の取得に失敗しました (${response.status}): ${errorText}`,
+				);
 			}
 
 			const data = await response.json();
@@ -230,16 +232,26 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 				authorName: formData.reporter,
 				content: `${formData.details}\n\n発生場所: ${formData.address}`,
 				postedAt: new Date(formData.datetime).toISOString(),
-				status: formData.status as '緊急' | '重要' | '通常',
-				locationTrack: coords ? [{
-					recordedAt: new Date().toISOString(),
-					latitude: coords.latitude,
-					longitude: coords.longitude,
-				}] : [],
-				media: formData.attachment ? [{
-					mediaType: formData.attachment.type.startsWith('video') ? 'video' : 'image',
-					fileName: formData.attachment.name,
-				}] : [],
+				status: formData.status as "緊急" | "重要" | "通常",
+				locationTrack: coords
+					? [
+							{
+								recordedAt: new Date().toISOString(),
+								latitude: coords.latitude,
+								longitude: coords.longitude,
+							},
+						]
+					: [],
+				media: formData.attachment
+					? [
+							{
+								mediaType: formData.attachment.type.startsWith("video")
+									? "video"
+									: "image",
+								fileName: formData.attachment.name,
+							},
+						]
+					: [],
 			};
 
 			// APIを呼び出して投稿を作成
@@ -247,19 +259,22 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 				data: postData,
 			});
 
-			console.log('投稿が正常に作成されました:', result);
+			console.log("投稿が正常に作成されました:", result);
 
 			// 従来のコールバックも呼び出し（既存の機能との互換性）
 			const reportData: ReportData = {
 				id: result.post.id,
-				datetime: new Date(formData.datetime).toLocaleString("ja-JP", {
-					year: "numeric",
-					month: "2-digit",
-					day: "2-digit",
-					hour: "2-digit",
-					minute: "2-digit",
-					timeZone: "Asia/Tokyo",
-				}).replace(/\//g, "/").replace(",", ""),
+				datetime: new Date(formData.datetime)
+					.toLocaleString("ja-JP", {
+						year: "numeric",
+						month: "2-digit",
+						day: "2-digit",
+						hour: "2-digit",
+						minute: "2-digit",
+						timeZone: "Asia/Tokyo",
+					})
+					.replace(/\//g, "/")
+					.replace(",", ""),
 				address: formData.address,
 				details: formData.details,
 				status: "unassigned",
@@ -275,10 +290,9 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 			handleClearLocation();
 			setIsSubmitting(false);
 			onClose();
-
 		} catch (error) {
-			console.error('投稿の作成に失敗しました:', error);
-			alert('投稿の作成に失敗しました。もう一度お試しください。');
+			console.error("投稿の作成に失敗しました:", error);
+			alert("投稿の作成に失敗しました。もう一度お試しください。");
 			setIsSubmitting(false);
 		}
 	};
