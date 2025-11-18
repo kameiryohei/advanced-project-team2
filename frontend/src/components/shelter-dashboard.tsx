@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { syncService } from "@/lib/sync-service";
+import { useGetShelters, useGetSheltersId, useGetSheltersIdPosts } from "@/api/generated/team2API";
 
 interface Report {
 	id: string;
@@ -136,6 +137,25 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 		mockMessages,
 	);
 
+	// APIクライアントの初期化
+	const currentShelterId = Number.parseInt(shelterId || "1", 10);
+	const { data: sheltersData, isLoading: isLoadingShelters } = useGetShelters();
+	const { data: shelterDetails, isLoading: isLoadingShelterDetails } = useGetSheltersId(currentShelterId);
+	const { data: shelterPosts, isLoading: isLoadingShelterPosts } = useGetSheltersIdPosts(currentShelterId);
+
+	// APIデータのログ出力
+	useEffect(() => {
+		if (sheltersData) {
+			console.log('避難所一覧データ:', sheltersData);
+		}
+		if (shelterDetails) {
+			console.log('避難所詳細データ:', shelterDetails);
+		}
+		if (shelterPosts) {
+			console.log('避難所投稿データ:', shelterPosts);
+		}
+	}, [sheltersData, shelterDetails, shelterPosts]);
+
 	useEffect(() => {
 		const storedReports = syncService.loadFromLocal(`reports_${shelterId}`);
 		const storedMessages = syncService.loadFromLocal(`messages_${shelterId}`);
@@ -241,6 +261,13 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 								? `${currentShelter.location} - 災害時情報共有・報告システム`
 								: "災害時情報共有・報告システム"}
 						</p>
+						{/* API データのデバッグ情報 */}
+						<div className="text-xs text-green-600 mt-1">
+							API接続状況: 
+							{sheltersData ? ` 避難所一覧(${sheltersData.shelterCount}件)` : ' 避難所一覧(未取得)'}
+							{shelterDetails ? ` | 詳細(${shelterDetails.name})` : ' | 詳細(未取得)'}
+							{shelterPosts ? ` | 投稿(${shelterPosts.posts.length}件)` : ' | 投稿(未取得)'}
+						</div>
 					</div>
 				</div>
 				<SyncStatus />

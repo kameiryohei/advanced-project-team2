@@ -24,6 +24,8 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { usePostPostsIdComments } from "@/api/generated/team2API";
+import type { CreateCommentRequest } from "@/api/generated/model";
 
 interface Message {
 	id: string;
@@ -118,6 +120,9 @@ export function ConversationThread({
 	const [responderName, setResponderName] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
+	// APIクライアントの初期化
+	const createCommentMutation = usePostPostsIdComments();
+
 	// Generate unique IDs for form elements
 	const responderInputId = useId();
 	const messageInputId = useId();
@@ -128,43 +133,63 @@ export function ConversationThread({
 
 		setIsSubmitting(true);
 
-		const messageData = {
-			time: new Date()
-				.toLocaleString("ja-JP", {
-					year: "numeric",
-					month: "2-digit",
-					day: "2-digit",
-					hour: "2-digit",
-					minute: "2-digit",
-				})
-				.replace(/\//g, "/")
-				.replace(",", ""),
-			responder: responderName,
-			message: newMessage,
-			status: newStatus || "対応中",
-			isResponder: responderName !== report.reporter,
-		};
-
-		// Simulate API call
-		await new Promise((resolve) => setTimeout(resolve, 500));
-
-		onAddMessage(report.id, messageData);
-
-		// Update report status if new status is provided
-		if (newStatus && newStatus !== report.status) {
-			const statusMap: { [key: string]: Report["status"] } = {
-				未対応: "unassigned",
-				対応中: "in-progress",
-				解決済み: "resolved",
+		try {
+			// APIリクエスト用のデータを作成
+			const commentData: CreateCommentRequest = {
+				authorName: responderName,
+				content: newMessage,
+				commentedAt: new Date().toISOString(),
 			};
-			if (statusMap[newStatus]) {
-				onUpdateReportStatus(report.id, statusMap[newStatus]);
-			}
-		}
 
-		setNewMessage("");
-		setNewStatus("");
-		setIsSubmitting(false);
+			// APIを呼び出してコメントを作成
+			const result = await createCommentMutation.mutateAsync({
+				id: report.id,
+				data: commentData,
+			});
+
+			console.log('コメントが正常に作成されました:', result);
+
+			// 従来のコールバックも呼び出し（既存の機能との互換性）
+			const messageData = {
+				time: new Date()
+					.toLocaleString("ja-JP", {
+						year: "numeric",
+						month: "2-digit",
+						day: "2-digit",
+						hour: "2-digit",
+						minute: "2-digit",
+					})
+					.replace(/\//g, "/")
+					.replace(",", ""),
+				responder: responderName,
+				message: newMessage,
+				status: newStatus || "対応中",
+				isResponder: responderName !== report.reporter,
+			};
+
+			onAddMessage(report.id, messageData);
+
+			// Update report status if new status is provided
+			if (newStatus && newStatus !== report.status) {
+				const statusMap: { [key: string]: Report["status"] } = {
+					未対応: "unassigned",
+					対応中: "in-progress",
+					解決済み: "resolved",
+				};
+				if (statusMap[newStatus]) {
+					onUpdateReportStatus(report.id, statusMap[newStatus]);
+				}
+			}
+
+			setNewMessage("");
+			setNewStatus("");
+			setIsSubmitting(false);
+
+		} catch (error) {
+			console.error('コメントの作成に失敗しました:', error);
+			alert('コメントの投稿に失敗しました。もう一度お試しください。');
+			setIsSubmitting(false);
+		}
 	};
 
 	return (
