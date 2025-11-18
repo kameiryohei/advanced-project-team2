@@ -67,6 +67,12 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 			setGpsStatus("位置情報の取得に失敗しました");
 		});
 	};
+
+	const handleClearLocation = () => {
+		setCoords(null);
+		setGpsStatus("位置情報をクリアしました");
+	};
+
 	/* 11/04 追加部分ここまで */
 
 	const handleSubmit = async (e: React.FormEvent) => {
@@ -179,11 +185,27 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 							)}
 
 							{coords && (
-								<Input
-									id="location"
-									value={`緯度: ${coords.latitude}, 経度: ${coords.longitude}`}
-									readOnly
-								/>
+								<div className="flex items-center gap-2">
+									<Input
+										id="location"
+										readOnly
+										value={
+											coords
+												? `緯度: ${coords.latitude}, 経度: ${coords.longitude}`
+												: "未取得"
+										}
+										className="flex-1"
+									/>
+
+									<Button
+										variant="ghost"
+										size="icon-sm"
+										onClick={handleClearLocation}
+										className="text-gray-500 hover:text-gray-700"
+									>
+										×
+									</Button>
+								</div>
 							)}
 						</div>
 
