@@ -1,4 +1,13 @@
+import type { components } from "../../schema/schema";
 import type { Database } from "../db/database";
+
+type PostMediaItem = components["schemas"]["PostMediaItem"];
+
+type InsertableMediaItem = PostMediaItem & {
+	id: string;
+	file_path: string;
+	created_at?: string;
+};
 
 type ShelterCountRow = {
 	shelterCount: number;
@@ -25,6 +34,24 @@ export type ShelterDetails = {
 	latitude: number;
 	longitude: number;
 	created_at: string;
+};
+
+export type ShelterPosts = {
+	postId: string;
+	authorName: string;
+	shelterId: number;
+	content: string | null;
+	postedAt: string;
+	latitude: number;
+	longitude: number;
+	is_synced: number;
+	createdAtByPost: string;
+	isFreechat: number;
+	mediaId: string | null;
+	filePath: string | null;
+	mediaType: string | null;
+	fileName: string | null;
+	createdAtByMedia: string | null;
 };
 
 const recentPostsByShelterQuery = `SELECT
@@ -83,4 +110,121 @@ export const fetchRecentPostsByShelter = async (
 		.all<ShelterPostSummary>();
 
 	return results;
+};
+
+export class ShelterNotFoundError extends Error {
+	constructor(id: number) {
+		super(`Shelter not found: ${id}`);
+		this.name = "ShelterNotFoundError";
+	}
+}
+
+export const insertShelterPost = async (
+	db: Database,
+	post: ShelterPosts,
+	mediaItems?: PostMediaItem[],
+): Promise<void> => {
+	// check shelter exists
+	const shelterCheck = await db
+		.prepare("SELECT id FROM shelters WHERE id = ?")
+		.bind(post.shelterId)
+		.all<{ id: number }>();
+
+	if (!shelterCheck.results || shelterCheck.results.length === 0) {
+		throw new ShelterNotFoundError(post.shelterId);
+	}
+
+	// insert into posts, then media (if any). If media insert fails, remove the post to avoid partial state.
+	try {
+		await db
+			.prepare(
+				`INSERT INTO posts (id, author_name, shelter_id, content, latitude, longitude, is_synced, posted_at, created_at, isFreechat)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			)
+			.bind(
+				post.postId,
+				post.authorName,
+				post.shelterId,
+				post.content,
+				post.latitude,
+				post.longitude,
+				post.is_synced,
+				post.postedAt,
+				post.createdAtByPost,
+				post.isFreechat,
+			)
+			.run();
+
+		// if media items provided, insert each into media table referencing the same post id
+		if (mediaItems && Array.isArray(mediaItems) && mediaItems.length > 0) {
+			try {
+				for (const miRaw of mediaItems) {
+					const mi = miRaw as InsertableMediaItem;
+					const id = mi.id;
+					const file_path = mi.file_path;
+					const media_type = mi.mediaType;
+					const file_name = mi.fileName ?? null;
+					const created_at = mi.created_at ?? new Date().toISOString();
+
+					await db
+						.prepare(
+							`INSERT INTO media (id, post_id, file_path, media_type, file_name, created_at)
+						VALUES (?, ?, ?, ?, ?, ?)`,
+						)
+						.bind(id, post.postId, file_path, media_type, file_name, created_at)
+						.run();
+				}
+			} catch (mediaErr) {
+				// cleanup any media for this post and the post itself to avoid partial insertion
+				try {
+					await db
+						.prepare("DELETE FROM media WHERE post_id = ?")
+						.bind(post.postId)
+						.run();
+				} catch (cleanupMediaErr) {
+					console.error(
+						"Failed to cleanup media after media insert error",
+						cleanupMediaErr,
+					);
+				}
+
+				try {
+					await db
+						.prepare("DELETE FROM posts WHERE id = ?")
+						.bind(post.postId)
+						.run();
+				} catch (cleanupErr) {
+					console.error(
+						"Failed to cleanup post after media insert error",
+						cleanupErr,
+					);
+				}
+
+				const msg =
+					mediaErr instanceof Error ? mediaErr.message : String(mediaErr);
+				if (msg.includes("FOREIGN KEY") || msg.includes("SQLITE_CONSTRAINT")) {
+					throw new Error(
+						"Media insert failed: referenced post or other FK target not found",
+					);
+				}
+
+				throw mediaErr;
+			}
+		}
+	} catch (err) {
+		// If the post insert failed due to shelter FK (shelter_id), translate to ShelterNotFoundError
+		const msg = err instanceof Error ? err.message : String(err);
+		if (msg.includes("FOREIGN KEY") || msg.includes("SQLITE_CONSTRAINT")) {
+			// check shelter again to give a helpful error
+			const shelterCheck2 = await db
+				.prepare("SELECT id FROM shelters WHERE id = ?")
+				.bind(post.shelterId)
+				.all<{ id: number }>();
+			if (!shelterCheck2.results || shelterCheck2.results.length === 0) {
+				throw new ShelterNotFoundError(post.shelterId);
+			}
+		}
+
+		throw err;
+	}
 };
