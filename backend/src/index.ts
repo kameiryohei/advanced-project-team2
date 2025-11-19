@@ -6,6 +6,7 @@ import { dbConnect } from "./db/database";
 import {
 	reverseGeocoderRepository,
 	shelterRepository,
+	signedVideoRepository,
 	videoRepository,
 } from "./repositories";
 import type { ShelterPosts } from "./repositories/shelterRepository";
@@ -187,19 +188,42 @@ app.post("/r2/test-video/:key", async (c) => {
 	}
 });
 
+// サイン付きURL取得用のサンプルエンドポイント
 app.get("/r2/test-video/:key", async (c) => {
 	const key = c.req.param("key");
-	const bucket = c.env.ASSET_BUCKET;
+
+	if (!key) {
+		return c.json({ error: "key is required" }, 400);
+	}
+
+	const bucketName = c.env.R2_BUCKET_NAME;
+	const accountId = c.env.CLOUDFLARE_R2_ACCOUNT_ID;
+	const accessKeyId = c.env.R2_ACCESS_KEY_ID;
+	const secretAccessKey = c.env.R2_SECRET_ACCESS_KEY;
+
+	console.info("R2 signed fetch environment", {
+		bucketName,
+		accountId,
+		hasAccessKey: Boolean(accessKeyId),
+		hasSecretAccessKey: Boolean(secretAccessKey),
+	});
 
 	try {
-		const { body, headers } = await videoRepository.getVideo({ bucket, key });
-		return c.newResponse(body, { headers });
+		const signedUrl = await signedVideoRepository.fetchSignedVideo({
+			bucketName,
+			accountId,
+			objectKey: key,
+			accessKeyId,
+			secretAccessKey,
+		});
+
+		return c.json({ url: signedUrl });
 	} catch (error) {
-		if (error instanceof videoRepository.VideoNotFoundError) {
-			return c.json({ error: error.message }, 404);
+		if (error instanceof signedVideoRepository.SignedVideoFetchError) {
+			return c.json({ error: error.message }, 500);
 		}
 
-		console.error("R2 video get failed", error);
+		console.error("R2 signed video get failed", error);
 		const message = error instanceof Error ? error.message : "Unknown error";
 		return c.json({ error: message }, 500);
 	}
