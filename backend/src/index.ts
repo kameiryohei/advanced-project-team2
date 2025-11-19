@@ -209,11 +209,9 @@ app.post("/posts", async (c) => {
 	const db = dbConnect(c.env);
 
 	try {
-		// リクエストボディを JSON として受け取る (OpenAPI の CreatePostRequest 準拠)
 		const reqBody =
 			await c.req.json<components["schemas"]["CreatePostRequest"]>();
 
-		// 必須の shelterId を検証
 		if (
 			typeof reqBody.shelterId !== "number" ||
 			Number.isNaN(reqBody.shelterId)
