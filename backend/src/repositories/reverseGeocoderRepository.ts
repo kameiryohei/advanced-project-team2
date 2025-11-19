@@ -7,9 +7,13 @@ export async function reverseGeocoderFetch(
 	lon: string,
 	apiKey: string,
 ): Promise<components["schemas"]["ReverseGeocoderResponse"]> {
-	const response = await fetch(
-		`${BASE_URL}?lat=${lat}&lon=${lon}&appid=${apiKey}&output=json`,
-	);
+	const params = new URLSearchParams({
+		lat,
+		lon,
+		appid: apiKey,
+		output: "json",
+	});
+	const response = await fetch(`${BASE_URL}?${params}`);
 
 	if (!response.ok) {
 		throw new Error("Yahoo APIからのレスポンスが失敗しました");
