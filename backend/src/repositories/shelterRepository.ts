@@ -46,7 +46,7 @@ export type ShelterPosts = {
 	longitude: number;
 	is_synced: number;
 	createdAtByPost: string;
-	isFreechat: number;
+	isFreeChat: number;
 	mediaId: string | null;
 	filePath: string | null;
 	mediaType: string | null;
@@ -159,7 +159,7 @@ export const insertShelterPost = async (
 				post.is_synced,
 				post.postedAt,
 				post.createdAtByPost,
-				post.isFreechat,
+				post.isFreeChat,
 			)
 			.run();
 

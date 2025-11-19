@@ -4,6 +4,77 @@
  */
 
 export interface paths {
+	"/api/geocode/reverse": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * 緯度・経度から住所を取得
+		 * @description Yahoo!地図APIの逆ジオコーダを呼び出し、住所と補助情報を返します。
+		 */
+		get: {
+			parameters: {
+				query: {
+					/** @description 検索対象の緯度 */
+					lat: number;
+					/** @description 検索対象の経度 */
+					lon: number;
+				};
+				header?: never;
+				path?: never;
+				cookie?: never;
+			};
+			requestBody?: never;
+			responses: {
+				/** @description 住所を取得しました */
+				200: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ReverseGeocoderResponse"];
+					};
+				};
+				/** @description 緯度または経度が不足しています */
+				400: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ErrorResponse"];
+					};
+				};
+				/** @description 住所が見つかりませんでした */
+				404: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ErrorResponse"];
+					};
+				};
+				/** @description サーバー内またはYahoo! APIへの問い合わせでエラーが発生しました */
+				500: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ErrorResponse"];
+					};
+				};
+			};
+		};
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/posts": {
 		parameters: {
 			query?: never;
@@ -440,6 +511,46 @@ export interface components {
 			posted_at: string;
 			shelter_name: string;
 			comment_count: number;
+		};
+		/** @description Yahoo!地図API 逆ジオコーダのレスポンス（Feature 配列）。 */
+		ReverseGeocoderResponse: {
+			/** @description 位置情報にマッチした候補の一覧 */
+			Feature: components["schemas"]["ReverseGeocoderFeature"][];
+		};
+		ReverseGeocoderFeature: {
+			/** @description この候補の代表名称（住所など） */
+			Name: string;
+			Geometry: components["schemas"]["ReverseGeocoderGeometry"];
+			Property: components["schemas"]["ReverseGeocoderProperty"];
+		};
+		ReverseGeocoderGeometry: {
+			/** @description 経度,緯度 の文字列（CSV形式） */
+			Coordinates: string;
+			/** @description Geometryの種類（通常はPoint） */
+			Type: string;
+			/** @description 逆ジオコーダが使用した範囲（左下,右上） */
+			BoundingBox?: string | null;
+		};
+		ReverseGeocoderProperty: {
+			/** @description 返却された住所テキスト */
+			Address: string;
+			Country?: string | null;
+			Prefecture?: string | null;
+			City?: string | null;
+			Town?: string | null;
+			Street?: string | null;
+			Postal?: string | null;
+			MatchCode?: string | null;
+			MatchLevel?: string | null;
+			/** @description 住所の階層ごとの要素 */
+			AddressElement?: components["schemas"]["ReverseGeocoderAddressElement"][];
+		};
+		ReverseGeocoderAddressElement: {
+			/** @description 要素の名前（例:Country, City） */
+			Name: string;
+			NameCode?: string | null;
+			/** @description 要素に対応する値 */
+			Value: string;
 		};
 		ErrorResponse: {
 			error: string;

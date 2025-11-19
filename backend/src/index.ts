@@ -3,7 +3,11 @@ import { createMiddleware } from "../middleware/middleware";
 import type { components, paths } from "../schema/schema";
 import type { Bindings } from "./db/database";
 import { dbConnect } from "./db/database";
-import { shelterRepository, videoRepository } from "./repositories";
+import {
+	reverseGeocoderRepository,
+	shelterRepository,
+	videoRepository,
+} from "./repositories";
 import type { ShelterPosts } from "./repositories/shelterRepository";
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -33,103 +37,33 @@ app.get("/api/geocode/reverse", async (c) => {
 		return c.json({ error: "緯度と経度が必要です" }, 400);
 	}
 
-	// 環境変数からAPIキーを取得
-	const apiKey = (c.env as any).YAHOO_MAPS_API_KEY;
+	const apiKey = c.env.YAHOO_MAPS_API_KEY;
 	if (!apiKey) {
 		return c.json({ error: "APIキーが設定されていません" }, 500);
 	}
 
 	try {
-		const response = await fetch(
-			`https://map.yahooapis.jp/geoapi/V1/reverseGeoCoder?lat=${lat}&lon=${lon}&appid=${apiKey}&output=json`,
+		const data = await reverseGeocoderRepository.reverseGeocoderFetch(
+			lat,
+			lon,
+			apiKey,
 		);
 
-		if (!response.ok) {
-			throw new Error("Yahoo APIからのレスポンスが失敗しました");
+		if (data.Feature.length === 0) {
+			const errorResponse: components["schemas"]["ErrorResponse"] = {
+				error: "住所が見つかりませんでした",
+			};
+			return c.json(errorResponse, 404);
 		}
 
-		const data = (await response.json()) as any;
-
-		if (data.Feature && data.Feature.length > 0) {
-			const address = data.Feature[0].Property.Address;
-			return c.json({ address });
-		}
-
-		return c.json({ error: "住所が見つかりませんでした" }, 404);
+		const successResponse: paths["/api/geocode/reverse"]["get"]["responses"]["200"]["content"]["application/json"] =
+			data;
+		return c.json(successResponse);
 	} catch {
-		// console.error("逆ジオコーディングエラー:");
-		return c.json({ error: "住所の取得に失敗しました" }, 500);
-	}
-});
-
-// 日本時間（JST）でタイムスタンプを取得する関数
-function getJSTTimestamp(): string {
-	const now = new Date();
-	const jstDate = new Date(
-		now.toLocaleString("en-US", { timeZone: "Asia/Tokyo" }),
-	);
-	return jstDate.toLocaleString("ja-JP", {
-		year: "numeric",
-		month: "2-digit",
-		day: "2-digit",
-		hour: "2-digit",
-		minute: "2-digit",
-		second: "2-digit",
-	});
-}
-
-// 位置情報保存エンドポイント
-app.post("/api/location", async (c) => {
-	try {
-		const body = await c.req.json();
-		const { latitude, longitude } = body;
-
-		if (!latitude || !longitude) {
-			return c.json({ error: "緯度と経度が必要です" }, 400);
-		}
-
-		// ここで位置情報をデータベースに保存する処理を実装
-		// 現在は簡単なレスポンスを返す
-		// ログ出力（Cloudflare Workers対応）
-		// console.log(`[${getJSTTimestamp()}] 位置情報を受信:`, { latitude, longitude });
-
-		return c.json({
-			message: "位置情報を保存しました",
-			location: { latitude, longitude },
-			timestamp: getJSTTimestamp(),
-		});
-	} catch {
-		// console.error(`[${getJSTTimestamp()}] 位置情報保存エラー:`);
-		return c.json({ error: "位置情報の保存に失敗しました" }, 500);
-	}
-});
-
-// 報告データ保存エンドポイント
-app.post("/api/reports", async (c) => {
-	try {
-		const body = await c.req.json();
-		const { title, description, category, location } = body;
-
-		// 報告データにタイムスタンプを追加
-		const reportData = {
-			id: Date.now().toString(),
-			title,
-			description,
-			category,
-			location,
-			createdAt: getJSTTimestamp(),
-			status: "新規",
+		const errorResponse: components["schemas"]["ErrorResponse"] = {
+			error: "住所の取得に失敗しました",
 		};
-
-		// console.log(`[${getJSTTimestamp()}] 報告データを受信:`, reportData);
-
-		return c.json({
-			message: "報告が保存されました",
-			report: reportData,
-		});
-	} catch {
-		// console.error(`[${getJSTTimestamp()}] 報告保存エラー:`);
-		return c.json({ error: "報告の保存に失敗しました" }, 500);
+		return c.json(errorResponse, 500);
 	}
 });
 
@@ -224,6 +158,7 @@ app.get("/shelters/:id/posts", async (c) => {
 		return c.json(errorResponse, 500);
 	}
 });
+
 // 動画アップロード・取得用のサンプルエンドポイント
 app.post("/r2/test-video/:key", async (c) => {
 	const key = c.req.param("key");
@@ -274,11 +209,9 @@ app.post("/posts", async (c) => {
 	const db = dbConnect(c.env);
 
 	try {
-		// リクエストボディを JSON として受け取る (OpenAPI の CreatePostRequest 準拠)
 		const reqBody =
 			await c.req.json<components["schemas"]["CreatePostRequest"]>();
 
-		// 必須の shelterId を検証
 		if (
 			typeof reqBody.shelterId !== "number" ||
 			Number.isNaN(reqBody.shelterId)
@@ -313,7 +246,7 @@ app.post("/posts", async (c) => {
 			longitude: firstLocation ? firstLocation.longitude : 0,
 			is_synced: 0,
 			createdAtByPost: now,
-			isFreechat: 0,
+			isFreeChat: 0,
 			mediaId: null,
 			filePath: null,
 			mediaType: null,
@@ -321,7 +254,6 @@ app.post("/posts", async (c) => {
 			createdAtByMedia: null,
 		};
 
-		// If media info is provided in the request, prepare media records (multiple) that reference the same postId
 		const mediaItems: Array<{
 			id: string;
 			file_path: string;
@@ -356,7 +288,6 @@ app.post("/posts", async (c) => {
 			}
 		}
 
-		// DB に挿入
 		try {
 			await shelterRepository.insertShelterPost(
 				db,
@@ -373,7 +304,6 @@ app.post("/posts", async (c) => {
 			throw err;
 		}
 
-		// Build response object matching requested shape
 		const responsePost: components["schemas"]["CreatePostResponse"]["post"] = {
 			id: shelterPost.postId,
 			authorName: shelterPost.authorName,
@@ -383,7 +313,6 @@ app.post("/posts", async (c) => {
 			createdAt: shelterPost.createdAtByPost,
 		} as components["schemas"]["CreatePostResponse"]["post"];
 
-		// include locationTrack if provided in request
 		if (reqBody.locationTrack && Array.isArray(reqBody.locationTrack)) {
 			responsePost.locationTrack = reqBody.locationTrack.map((pt) => ({
 				recordedAt: pt.recordedAt,
@@ -392,7 +321,6 @@ app.post("/posts", async (c) => {
 			}));
 		}
 
-		// include media info if present
 		responsePost.media = [];
 		if (mediaItems.length > 0) {
 			responsePost.media = mediaItems.map((m) => ({
