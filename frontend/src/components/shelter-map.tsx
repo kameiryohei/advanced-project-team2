@@ -8,6 +8,7 @@ import "leaflet/dist/leaflet.css";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerRetina from "leaflet/dist/images/marker-icon-2x.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
+import { Button } from "./ui/button";
 
 interface Shelter {
 	id: string;
@@ -139,12 +140,12 @@ export function ShelterMap({ shelters, onShelterSelect }: ShelterMapProps) {
 											</p>
 										)}
 									</div>
-									<button
+									<Button
 										className="mt-2 px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
 										onClick={() => onShelterSelect(shelter.id)}
 									>
 										詳細表示
-									</button>
+									</Button>
 								</div>
 							</Popup>
 						</Marker>
@@ -152,14 +153,16 @@ export function ShelterMap({ shelters, onShelterSelect }: ShelterMapProps) {
 				</MapContainer>
 			</div>
 
-			<style jsx global>{`
+			<style>
+				{`
         .online-marker {
           filter: hue-rotate(120deg) saturate(1.5);
         }
         .offline-marker {
           filter: hue-rotate(0deg) saturate(2) brightness(0.8);
         }
-      `}</style>
+      `}
+			</style>
 		</>
 	);
 }
