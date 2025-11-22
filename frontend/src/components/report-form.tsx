@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useId, useRef, useState } from "react";
+import type { CreatePostRequest } from "@/api/generated/model";
+import { usePostPosts } from "@/api/generated/team2API";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -48,6 +50,8 @@ interface ReportFormProps {
 }
 
 export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
+	// APIクライアントの初期化
+	const createPostMutation = usePostPosts();
 	// 日本時間（JST）でdatetime-localフィールドを初期化する関数
 	const getJSTDatetimeString = () => {
 		const now = new Date();
@@ -101,18 +105,30 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 		longitude: number,
 	): Promise<string | null> => {
 		try {
+			console.log(`逆ジオコーディング開始: lat=${latitude}, lon=${longitude}`);
+
 			const response = await fetch(
 				`http://localhost:8787/api/geocode/reverse?lat=${latitude}&lon=${longitude}`,
 				{
 					method: "GET",
+					headers: {
+						"Content-Type": "application/json",
+					},
 				},
 			);
 
+			console.log(`逆ジオコーディングレスポンス: ${response.status}`);
+
 			if (!response.ok) {
-				throw new Error("住所の取得に失敗しました");
+				const errorText = await response.text();
+				console.error("APIエラーレスポンス:", errorText);
+				throw new Error(
+					`住所の取得に失敗しました (${response.status}): ${errorText}`,
+				);
 			}
 
 			const data = await response.json();
+			console.log("逆ジオコーディング結果:", data);
 
 			if (data.address) {
 				return data.address;
@@ -209,44 +225,76 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 		e.preventDefault();
 		setIsSubmitting(true);
 
-		// Format datetime to match the expected format (JST)
-		const inputDate = new Date(formData.datetime);
-		// datetime-localの値は既にローカル時刻として解釈されるため、
-		// 日本時間として扱う
-		const formattedDatetime = inputDate
-			.toLocaleString("ja-JP", {
-				year: "numeric",
-				month: "2-digit",
-				day: "2-digit",
-				hour: "2-digit",
-				minute: "2-digit",
-				timeZone: "Asia/Tokyo",
-			})
-			.replace(/\//g, "/")
-			.replace(",", "");
+		try {
+			// APIリクエスト用のデータを作成
+			const postData: CreatePostRequest = {
+				shelterId: 1, // デフォルトの避難所ID（後で動的に設定可能）
+				authorName: formData.reporter,
+				content: `${formData.details}\n\n発生場所: ${formData.address}`,
+				postedAt: new Date(formData.datetime).toISOString(),
+				status: formData.status as "緊急" | "重要" | "通常",
+				locationTrack: coords
+					? [
+							{
+								recordedAt: new Date().toISOString(),
+								latitude: coords.latitude,
+								longitude: coords.longitude,
+							},
+						]
+					: [],
+				media: formData.attachment
+					? [
+							{
+								mediaType: formData.attachment.type.startsWith("video")
+									? "video"
+									: "image",
+								fileName: formData.attachment.name,
+							},
+						]
+					: [],
+			};
 
-		const reportData: ReportData = {
-			id: Date.now().toString(),
-			datetime: formattedDatetime,
-			address: formData.address,
-			details: formData.details,
-			status: "unassigned", // 新規報告は未対応として作成
-			reporter: formData.reporter,
-			attachment: formData.attachment ? formData.attachment.name : undefined,
-			responder: formData.responder,
-			location: coords, // 位置情報を含める
-		};
+			// APIを呼び出して投稿を作成
+			const result = await createPostMutation.mutateAsync({
+				data: postData,
+			});
 
-		// Simulate API call
-		await new Promise((resolve) => setTimeout(resolve, 1000));
+			console.log("投稿が正常に作成されました:", result);
 
-		onSubmit(reportData);
+			// 従来のコールバックも呼び出し（既存の機能との互換性）
+			const reportData: ReportData = {
+				id: result.post.id,
+				datetime: new Date(formData.datetime)
+					.toLocaleString("ja-JP", {
+						year: "numeric",
+						month: "2-digit",
+						day: "2-digit",
+						hour: "2-digit",
+						minute: "2-digit",
+						timeZone: "Asia/Tokyo",
+					})
+					.replace(/\//g, "/")
+					.replace(",", ""),
+				address: formData.address,
+				details: formData.details,
+				status: "unassigned",
+				reporter: formData.reporter,
+				attachment: formData.attachment ? formData.attachment.name : undefined,
+				responder: formData.responder,
+				location: coords,
+			};
 
-		// フォームをリセット（位置情報も含める）
-		handleClearLocation();
+			onSubmit(reportData);
 
-		setIsSubmitting(false);
-		onClose();
+			// フォームをリセット
+			handleClearLocation();
+			setIsSubmitting(false);
+			onClose();
+		} catch (error) {
+			console.error("投稿の作成に失敗しました:", error);
+			alert("投稿の作成に失敗しました。もう一度お試しください。");
+			setIsSubmitting(false);
+		}
 	};
 
 	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

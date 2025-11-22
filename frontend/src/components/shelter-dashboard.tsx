@@ -9,6 +9,11 @@ import {
 	Users,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import {
+	useGetShelters,
+	useGetSheltersId,
+	useGetSheltersIdPosts,
+} from "@/api/generated/team2API";
 import { ConversationThread } from "@/components/conversation-thread";
 import { ReportForm } from "@/components/report-form";
 import { ReportMap } from "@/components/report-map";
@@ -129,12 +134,57 @@ const getStatusColor = (status: string) => {
 
 export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 	const [selectedReport, setSelectedReport] = useState<string | null>(null);
-	const [isOnline] = useState(false);
 	const [showReportForm, setShowReportForm] = useState(false);
 	const [reports, setReports] = useState<Report[]>(mockReports);
 	const [messages, setMessages] = useState<{ [key: string]: Message[] }>(
 		mockMessages,
 	);
+
+	// APIクライアントの初期化
+	const currentShelterId = Number.parseInt(shelterId || "1", 10);
+	const { data: sheltersData } = useGetShelters();
+	const { data: shelterDetails } = useGetSheltersId(currentShelterId);
+	const { data: shelterPosts } = useGetSheltersIdPosts(currentShelterId);
+
+	// APIデータのログ出力と状態更新
+	useEffect(() => {
+		if (sheltersData) {
+			console.log("避難所一覧データ:", sheltersData);
+		}
+		if (shelterDetails) {
+			console.log("避難所詳細データ:", shelterDetails);
+		}
+		if (shelterPosts) {
+			console.log("避難所投稿データ:", shelterPosts);
+			// APIから取得した投稿データを現在の報告リストに変換
+			const convertedReports: Report[] = shelterPosts.posts.map(
+				(post, index) => ({
+					id: post.id,
+					datetime: new Date(post.posted_at)
+						.toLocaleString("ja-JP", {
+							year: "numeric",
+							month: "2-digit",
+							day: "2-digit",
+							hour: "2-digit",
+							minute: "2-digit",
+						})
+						.replace(/\//g, "/")
+						.replace(",", ""),
+					address: post.shelter_name || `避難所 ${currentShelterId}`,
+					details: post.content || "投稿内容なし",
+					status:
+						index % 3 === 0
+							? "unassigned"
+							: index % 3 === 1
+								? "in-progress"
+								: "resolved",
+					reporter: post.author_name,
+					responder: "未対応",
+				}),
+			);
+			setReports([...mockReports, ...convertedReports]);
+		}
+	}, [sheltersData, shelterDetails, shelterPosts, currentShelterId]);
 
 	useEffect(() => {
 		const storedReports = syncService.loadFromLocal(`reports_${shelterId}`);
@@ -241,6 +291,19 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 								? `${currentShelter.location} - 災害時情報共有・報告システム`
 								: "災害時情報共有・報告システム"}
 						</p>
+						{/* API データのデバッグ情報 */}
+						<div className="text-xs text-green-600 mt-1">
+							API接続状況:
+							{sheltersData
+								? ` 避難所一覧(${sheltersData.shelterCount}件)`
+								: " 避難所一覧(未取得)"}
+							{shelterDetails
+								? ` | 詳細(${shelterDetails.name})`
+								: " | 詳細(未取得)"}
+							{shelterPosts
+								? ` | 投稿(${shelterPosts.posts.length}件)`
+								: " | 投稿(未取得)"}
+						</div>
 					</div>
 				</div>
 				<SyncStatus />
@@ -250,37 +313,51 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 			<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">避難者数</CardTitle>
+						<CardTitle className="text-sm font-medium">避難所数</CardTitle>
 						<Users className="h-4 w-4 text-muted-foreground" />
 					</CardHeader>
 					<CardContent>
-						<div className="text-2xl font-bold">{shelterPopulation}人</div>
-						<p className="text-xs text-muted-foreground">前回更新: 30分前</p>
+						<div className="text-2xl font-bold">
+							{sheltersData ? sheltersData.shelterCount : shelterPopulation}
+							{sheltersData ? "箇所" : "人"}
+						</div>
+						<p className="text-xs text-muted-foreground">
+							{sheltersData ? "API取得済み" : "前回更新: 30分前"}
+						</p>
 					</CardContent>
 				</Card>
 
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">未対応報告</CardTitle>
+						<CardTitle className="text-sm font-medium">
+							{shelterPosts ? "投稿数" : "未対応報告"}
+						</CardTitle>
 						<AlertTriangle className="h-4 w-4 text-destructive" />
 					</CardHeader>
 					<CardContent>
 						<div className="text-2xl font-bold text-destructive">
-							{reports.filter((r) => r.status === "unassigned").length}件
+							{shelterPosts
+								? shelterPosts.posts.length
+								: reports.filter((r) => r.status === "unassigned").length}
+							件
 						</div>
-						<p className="text-xs text-muted-foreground">緊急対応が必要</p>
+						<p className="text-xs text-muted-foreground">
+							{shelterPosts ? "API取得済み投稿" : "緊急対応が必要"}
+						</p>
 					</CardContent>
 				</Card>
 
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">最終同期</CardTitle>
+						<CardTitle className="text-sm font-medium">API接続状況</CardTitle>
 						<Clock className="h-4 w-4 text-muted-foreground" />
 					</CardHeader>
 					<CardContent>
-						<div className="text-2xl font-bold">2時間前</div>
+						<div className="text-2xl font-bold text-green-600">
+							{shelterDetails ? "接続中" : "未接続"}
+						</div>
 						<p className="text-xs text-muted-foreground">
-							{isOnline ? "同期可能" : "同期待機中"}
+							{shelterDetails ? `${shelterDetails.name}` : "APIデータ取得待ち"}
 						</p>
 					</CardContent>
 				</Card>
