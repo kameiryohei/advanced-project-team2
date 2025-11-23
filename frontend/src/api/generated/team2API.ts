@@ -29,6 +29,8 @@ import type {
   CreatePostRequest,
   CreatePostResponse,
   ErrorResponse,
+  GetApiGeocodeReverseParams,
+  ReverseGeocoderResponse,
   ShelterDetails,
   ShelterListWithCountResponse,
   ShelterPostsResponse
@@ -39,6 +41,100 @@ import type { ErrorType } from '../axios-instance';
 
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+
+
+/**
+ * Yahoo!地図APIの逆ジオコーダを呼び出し、住所と補助情報を返します。
+ * @summary 緯度・経度から住所を取得
+ */
+export const getApiGeocodeReverse = (
+    params: GetApiGeocodeReverseParams,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return axiosInstance<ReverseGeocoderResponse>(
+      {url: `/api/geocode/reverse`, method: 'GET',
+        params, signal
+    },
+      options);
+    }
+  
+
+
+
+export const getGetApiGeocodeReverseQueryKey = (params?: GetApiGeocodeReverseParams,) => {
+    return [
+    `/api/geocode/reverse`, ...(params ? [params]: [])
+    ] as const;
+    }
+
+    
+export const getGetApiGeocodeReverseQueryOptions = <TData = Awaited<ReturnType<typeof getApiGeocodeReverse>>, TError = ErrorType<ErrorResponse | ErrorResponse | ErrorResponse>>(params: GetApiGeocodeReverseParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiGeocodeReverse>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetApiGeocodeReverseQueryKey(params);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getApiGeocodeReverse>>> = ({ signal }) => getApiGeocodeReverse(params, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getApiGeocodeReverse>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetApiGeocodeReverseQueryResult = NonNullable<Awaited<ReturnType<typeof getApiGeocodeReverse>>>
+export type GetApiGeocodeReverseQueryError = ErrorType<ErrorResponse | ErrorResponse | ErrorResponse>
+
+
+export function useGetApiGeocodeReverse<TData = Awaited<ReturnType<typeof getApiGeocodeReverse>>, TError = ErrorType<ErrorResponse | ErrorResponse | ErrorResponse>>(
+ params: GetApiGeocodeReverseParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiGeocodeReverse>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getApiGeocodeReverse>>,
+          TError,
+          Awaited<ReturnType<typeof getApiGeocodeReverse>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetApiGeocodeReverse<TData = Awaited<ReturnType<typeof getApiGeocodeReverse>>, TError = ErrorType<ErrorResponse | ErrorResponse | ErrorResponse>>(
+ params: GetApiGeocodeReverseParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiGeocodeReverse>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getApiGeocodeReverse>>,
+          TError,
+          Awaited<ReturnType<typeof getApiGeocodeReverse>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetApiGeocodeReverse<TData = Awaited<ReturnType<typeof getApiGeocodeReverse>>, TError = ErrorType<ErrorResponse | ErrorResponse | ErrorResponse>>(
+ params: GetApiGeocodeReverseParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiGeocodeReverse>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 緯度・経度から住所を取得
+ */
+
+export function useGetApiGeocodeReverse<TData = Awaited<ReturnType<typeof getApiGeocodeReverse>>, TError = ErrorType<ErrorResponse | ErrorResponse | ErrorResponse>>(
+ params: GetApiGeocodeReverseParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiGeocodeReverse>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetApiGeocodeReverseQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
 
 
 
