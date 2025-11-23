@@ -10,6 +10,8 @@
 		"includes": [
 			"**/*",
 			"!frontend/dist",
+			"!frontend/src/api",
+			"!frontend/src/components/ui",
 			"!**/node_modules",
 			"!backend/.wrangler",
 			"!backend/dist"
