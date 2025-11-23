@@ -138,7 +138,6 @@ export function ConversationThread({
 			const commentData: CreateCommentRequest = {
 				authorName: responderName,
 				content: newMessage,
-				commentedAt: new Date().toISOString(),
 			};
 
 			// APIを呼び出してコメントを作成
@@ -398,7 +397,7 @@ export function ConversationThread({
 										value={newMessage}
 										onChange={(e) => setNewMessage(e.target.value)}
 										required
-										className="min-h-[80px] resize-none"
+										className="min-h-20 resize-none"
 									/>
 								</div>
 
