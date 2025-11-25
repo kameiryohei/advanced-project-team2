@@ -372,4 +372,127 @@ app.post("/posts", async (c) => {
 	}
 });
 
+// 投稿に紐づくコメント一覧取得とコメント作成エンドポイント
+app.get("/posts/:id/comments", async (c) => {
+	const postId = c.req.param("id");
+
+	if (!postId) {
+		const errorResponse: components["schemas"]["ErrorResponse"] = {
+			error: "post id is required",
+		};
+		return c.json(errorResponse, 400);
+	}
+
+	const db = dbConnect(c.env);
+
+	try {
+		// posts テーブルから is_free_chat を取得（null の場合は投稿が存在しないと見なす）
+		const isFreeChatVal = await shelterRepository.fetchPostIsFreeChat(
+			db,
+			postId,
+		);
+
+		if (isFreeChatVal === null) {
+			const errorResponse: components["schemas"]["ErrorResponse"] = {
+				error: "対象の投稿が見つかりません",
+			};
+			return c.json(errorResponse, 404);
+		}
+
+		const isFreeChat = isFreeChatVal === 1;
+
+		const comments = await shelterRepository.fetchCommentsByPost(db, postId);
+
+		const response: paths["/posts/{id}/comments"]["get"]["responses"]["200"]["content"]["application/json"] =
+			{
+				postId,
+				isFreeChat,
+				comments,
+			};
+
+		return c.json(response);
+	} catch (error) {
+		console.error("D1 fetch comments failed", error);
+		const message = error instanceof Error ? error.message : "Unknown error";
+		const errorResponse: components["schemas"]["ErrorResponse"] = {
+			error: message,
+		};
+		return c.json(errorResponse, 500);
+	}
+});
+
+app.post("/posts/:id/comments", async (c) => {
+	const postId = c.req.param("id");
+
+	if (!postId) {
+		const errorResponse: components["schemas"]["ErrorResponse"] = {
+			error: "post id is required",
+		};
+		return c.json(errorResponse, 400);
+	}
+
+	const db = dbConnect(c.env);
+
+	try {
+		const reqBody =
+			await c.req.json<components["schemas"]["CreateCommentRequest"]>();
+
+		if (
+			!reqBody ||
+			typeof reqBody.authorName !== "string" ||
+			typeof reqBody.content !== "string"
+		) {
+			const errorResponse: components["schemas"]["ErrorResponse"] = {
+				error: "invalid request body",
+			};
+			return c.json(errorResponse, 400);
+		}
+
+		const maybeCrypto = (
+			globalThis as unknown as { crypto?: { randomUUID?: () => string } }
+		).crypto;
+		const commentId = maybeCrypto?.randomUUID
+			? maybeCrypto.randomUUID()
+			: `comment-${Date.now()}`;
+
+		try {
+			const result = await shelterRepository.createCommentForPost(db, {
+				commentId,
+				postId,
+				authorName: reqBody.authorName,
+				content: reqBody.content,
+			});
+
+			const response: components["schemas"]["CreateCommentResponse"] = {
+				comment: {
+					id: result.id,
+					postId: result.postId,
+					authorName: result.authorName,
+					content: result.content,
+					createdAt: result.createdAt,
+				},
+			};
+
+			return c.json(response, 201);
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			// foreign key / sqlite constraint -> post not found
+			if (msg.includes("FOREIGN KEY") || msg.includes("SQLITE_CONSTRAINT")) {
+				const errorResponse: components["schemas"]["ErrorResponse"] = {
+					error: "対象の投稿が見つかりません",
+				};
+				return c.json(errorResponse, 404);
+			}
+			throw err;
+		}
+	} catch (error) {
+		console.error("D1 create comment failed", error);
+		const message = error instanceof Error ? error.message : "Unknown error";
+		const errorResponse: components["schemas"]["ErrorResponse"] = {
+			error: message,
+		};
+		return c.json(errorResponse, 500);
+	}
+});
+
 export default app;
