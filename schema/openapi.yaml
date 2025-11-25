@@ -170,6 +170,36 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
   /posts/{id}/comments:
+    get:
+      tags:
+        - 投稿
+      summary: 投稿に紐づくコメント一覧を取得
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 対象の投稿ID
+          schema:
+            type: string
+      responses:
+        "200":
+          description: コメント一覧を取得しました
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostCommentsResponse"
+        "400":
+          description: リクエスト内容が不正です
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: サーバー側でエラーが発生しました
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     post:
       tags:
         - 投稿
@@ -335,6 +365,41 @@ components:
             - createdAt
       required:
         - comment
+    PostComment:
+      type: object
+      properties:
+        id:
+          type: string
+          description: コメントID
+        authorName:
+          type: string
+          description: コメント投稿者の表示名
+        content:
+          type: string
+          description: コメント本文
+        createdAt:
+          type: string
+          format: date-time
+          description: コメントの作成時刻
+      required:
+        - id
+        - authorName
+        - content
+        - createdAt
+    PostCommentsResponse:
+      type: object
+      properties:
+        postId:
+          type: string
+          description: 対象の投稿ID
+        comments:
+          type: array
+          description: コメント一覧
+          items:
+            $ref: "#/components/schemas/PostComment"
+      required:
+        - postId
+        - comments
     ShelterListWithCountResponse:
       type: object
       properties:
