@@ -367,7 +367,6 @@ app.post("/posts", async (c) => {
 // 投稿に紐づくコメント一覧取得とコメント作成エンドポイント
 app.get("/posts/:id/comments", async (c) => {
 	const postId = c.req.param("id");
-	const isFreeChatQuery = c.req.query("isFreeChat");
 
 	if (!postId) {
 		const errorResponse: components["schemas"]["ErrorResponse"] = {
@@ -395,16 +394,6 @@ app.get("/posts/:id/comments", async (c) => {
 		const isFreeChat = isFreeChatVal === 1;
 
 		const comments = await shelterRepository.fetchCommentsByPost(db, postId);
-
-		if (isFreeChat || isFreeChatQuery === "true" || isFreeChatQuery === "1") {
-			const response: paths["/posts/{id}/comments"]["get"]["responses"]["200"]["content"]["application/json"] =
-				{
-					postId,
-					isFreeChat,
-					comments,
-				};
-			return c.json(response);
-		}
 
 		const response: paths["/posts/{id}/comments"]["get"]["responses"]["200"]["content"]["application/json"] =
 			{
