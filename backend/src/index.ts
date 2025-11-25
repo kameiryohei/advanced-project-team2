@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { v4 as uuidv4 } from "uuid";
 import { createMiddleware } from "../middleware/middleware";
 import type { components, paths } from "../schema/schema";
 import type { Bindings } from "./db/database";
@@ -196,12 +197,40 @@ app.post("/r2/test-video/:key", async (c) => {
 	}
 });
 
-// サイン付きURL取得用のサンプルエンドポイント
-app.get("/r2/test-video/:key", async (c) => {
+// R2からファイルを取得するエンドポイント
+// NODE_ENV=development: ローカルR2から直接取得
+// NODE_ENV=production: 署名付きURLを返す
+app.get("/r2/video/:key{.+}", async (c) => {
 	const key = c.req.param("key");
+	const isDevelopment = c.env.NODE_ENV === "development";
 
 	if (!key) {
 		return c.json({ error: "key is required" }, 400);
+	}
+
+	// 開発環境: ローカルR2から直接ファイルを返す
+	if (isDevelopment) {
+		const bucket = c.env.ASSET_BUCKET;
+
+		try {
+			const object = await bucket.get(key);
+			if (!object) {
+				return c.json({ error: "Object not found" }, 404);
+			}
+
+			const headers = new Headers();
+			headers.set(
+				"Content-Type",
+				object.httpMetadata?.contentType || "application/octet-stream",
+			);
+			headers.set("Content-Length", String(object.size));
+
+			return new Response(object.body, { headers });
+		} catch (error) {
+			console.error("R2 local get failed", error);
+			const message = error instanceof Error ? error.message : "Unknown error";
+			return c.json({ error: message }, 500);
+		}
 	}
 
 	const bucketName = c.env.R2_BUCKET_NAME;
@@ -237,12 +266,77 @@ app.get("/r2/test-video/:key", async (c) => {
 	}
 });
 
-app.post("/posts", async (c) => {
-	const db = dbConnect(c.env);
+// 後方互換性のため古いエンドポイントも残す（本番用署名付きURL）
+app.get("/r2/test-video/:key{.+}", async (c) => {
+	const key = c.req.param("key");
+
+	if (!key) {
+		return c.json({ error: "key is required" }, 400);
+	}
+
+	const bucketName = c.env.R2_BUCKET_NAME;
+	const accountId = c.env.CLOUDFLARE_R2_ACCOUNT_ID;
+	const accessKeyId = c.env.R2_ACCESS_KEY_ID;
+	const secretAccessKey = c.env.R2_SECRET_ACCESS_KEY;
 
 	try {
-		const reqBody =
-			await c.req.json<components["schemas"]["CreatePostRequest"]>();
+		const signedUrl = await signedVideoRepository.fetchSignedVideo({
+			bucketName,
+			accountId,
+			objectKey: key,
+			accessKeyId,
+			secretAccessKey,
+		});
+
+		return c.json({ url: signedUrl });
+	} catch (error) {
+		if (error instanceof signedVideoRepository.SignedVideoFetchError) {
+			return c.json({ error: error.message }, 500);
+		}
+
+		console.error("R2 signed video get failed", error);
+		const message = error instanceof Error ? error.message : "Unknown error";
+		return c.json({ error: message }, 500);
+	}
+});
+
+// ファイルサイズ上限（30MB）
+const MAX_FILE_SIZE = 30 * 1024 * 1024;
+
+// 許可するMIMEタイプ
+const ALLOWED_MIME_TYPES = [
+	"image/jpeg",
+	"image/png",
+	"image/gif",
+	"video/mp4",
+];
+
+app.post("/posts", async (c) => {
+	const db = dbConnect(c.env);
+	const bucket = c.env.ASSET_BUCKET;
+
+	try {
+		// multipart/form-data をパース
+		const formData = await c.req.formData();
+
+		// metadata フィールドから JSON を取得
+		const metadataField = formData.get("metadata");
+		if (!metadataField || typeof metadataField !== "string") {
+			const errorResponse: components["schemas"]["ErrorResponse"] = {
+				error: "metadata field is required and must be a JSON string",
+			};
+			return c.json(errorResponse, 400);
+		}
+
+		let reqBody: components["schemas"]["CreatePostRequest"];
+		try {
+			reqBody = JSON.parse(metadataField);
+		} catch {
+			const errorResponse: components["schemas"]["ErrorResponse"] = {
+				error: "metadata field must be valid JSON",
+			};
+			return c.json(errorResponse, 400);
+		}
 
 		if (
 			typeof reqBody.shelterId !== "number" ||
@@ -254,13 +348,34 @@ app.post("/posts", async (c) => {
 			return c.json(errorResponse, 400);
 		}
 
+		// mediaFiles フィールドからファイルを取得
+		const mediaFiles: File[] = [];
+		const allMediaFiles = formData.getAll("mediaFiles");
+		for (const file of allMediaFiles) {
+			if (file instanceof File) {
+				mediaFiles.push(file);
+			}
+		}
+
+		// ファイルサイズとMIMEタイプのバリデーション
+		for (const file of mediaFiles) {
+			if (file.size > MAX_FILE_SIZE) {
+				const errorResponse: components["schemas"]["ErrorResponse"] = {
+					error: `File "${file.name}" exceeds maximum size of 50MB`,
+				};
+				return c.json(errorResponse, 413);
+			}
+
+			if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+				const errorResponse: components["schemas"]["ErrorResponse"] = {
+					error: `File "${file.name}" has unsupported media type: ${file.type}. Allowed types: ${ALLOWED_MIME_TYPES.join(", ")}`,
+				};
+				return c.json(errorResponse, 415);
+			}
+		}
+
 		const now = new Date().toISOString();
-		const maybeCrypto = (
-			globalThis as unknown as { crypto?: { randomUUID?: () => string } }
-		).crypto;
-		const postId = maybeCrypto?.randomUUID
-			? maybeCrypto.randomUUID()
-			: `post-${Date.now()}`;
+		const postId = uuidv4();
 
 		// locationTrack があれば最初の点を使い、なければ 0 を入れる
 		const firstLocation =
@@ -273,7 +388,7 @@ app.post("/posts", async (c) => {
 			authorName: reqBody.authorName,
 			shelterId: reqBody.shelterId,
 			content: reqBody.content ?? null,
-			postedAt: reqBody.postedAt ?? now,
+			postedAt: reqBody.occurredAt ?? now,
 			latitude: firstLocation ? firstLocation.latitude : 0,
 			longitude: firstLocation ? firstLocation.longitude : 0,
 			is_synced: 0,
@@ -294,30 +409,76 @@ app.post("/posts", async (c) => {
 			created_at?: string;
 		}> = [];
 
-		if (
-			reqBody.media &&
-			Array.isArray(reqBody.media) &&
-			reqBody.media.length > 0
-		) {
-			const maybeCrypto = (
-				globalThis as unknown as { crypto?: { randomUUID?: () => string } }
-			).crypto;
+		// R2にファイルをアップロード
+		const uploadedKeys: string[] = [];
+		try {
+			for (const file of mediaFiles) {
+				const mediaId = uuidv4();
 
-			for (const mi of reqBody.media) {
-				const mediaId = maybeCrypto?.randomUUID
-					? maybeCrypto.randomUUID()
-					: `media-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+				// ファイル拡張子を取得
+				const ext = file.name.split(".").pop() || "";
+				const r2Key = `media/${postId}/${mediaId}${ext ? `.${ext}` : ""}`;
 
-				const filePath = `public/uploads/${mediaId}`;
+				const body = await file.arrayBuffer();
+
+				// R2にアップロード
+				await videoRepository.uploadVideo({
+					bucket,
+					key: r2Key,
+					body,
+					contentType: file.type,
+				});
+
+				uploadedKeys.push(r2Key);
 
 				mediaItems.push({
 					id: mediaId,
-					file_path: filePath,
-					mediaType: mi.mediaType,
-					fileName: mi.fileName ?? null,
+					file_path: r2Key,
+					mediaType: file.type,
+					fileName: file.name,
 					created_at: now,
 				});
 			}
+
+			// reqBody.media からもメタデータのみのアイテムを追加（ファイルなしの場合）
+			if (
+				reqBody.media &&
+				Array.isArray(reqBody.media) &&
+				reqBody.media.length > 0 &&
+				mediaFiles.length === 0
+			) {
+				for (const mi of reqBody.media) {
+					const mediaId = uuidv4();
+
+					const filePath = `media/${postId}/${mediaId}`;
+
+					mediaItems.push({
+						id: mediaId,
+						file_path: filePath,
+						mediaType: mi.mediaType,
+						fileName: mi.fileName ?? null,
+						created_at: now,
+					});
+				}
+			}
+		} catch (uploadErr) {
+			// アップロード失敗時は既にアップロードしたファイルを削除
+			for (const key of uploadedKeys) {
+				try {
+					await bucket.delete(key);
+				} catch (deleteErr) {
+					console.error(`Failed to cleanup R2 object ${key}`, deleteErr);
+				}
+			}
+
+			if (uploadErr instanceof videoRepository.EmptyVideoBodyError) {
+				const errorResponse: components["schemas"]["ErrorResponse"] = {
+					error: "Empty file body is not allowed",
+				};
+				return c.json(errorResponse, 400);
+			}
+
+			throw uploadErr;
 		}
 
 		try {
@@ -326,7 +487,31 @@ app.post("/posts", async (c) => {
 				shelterPost,
 				mediaItems.length > 0 ? mediaItems : undefined,
 			);
+
+			// locationTrackがあればpost_location_tracksテーブルに保存
+			if (
+				reqBody.locationTrack &&
+				Array.isArray(reqBody.locationTrack) &&
+				reqBody.locationTrack.length > 0
+			) {
+				const trackItems = reqBody.locationTrack.map((pt) => ({
+					id: uuidv4(),
+					recordedAt: pt.recordedAt,
+					latitude: pt.latitude,
+					longitude: pt.longitude,
+				}));
+				await shelterRepository.insertLocationTracks(db, postId, trackItems);
+			}
 		} catch (err) {
+			// DB挿入失敗時はR2からファイルを削除
+			for (const key of uploadedKeys) {
+				try {
+					await bucket.delete(key);
+				} catch (deleteErr) {
+					console.error(`Failed to cleanup R2 object ${key}`, deleteErr);
+				}
+			}
+
 			if (err instanceof shelterRepository.ShelterNotFoundError) {
 				const errorResponse: components["schemas"]["ErrorResponse"] = {
 					error: "指定した避難所は存在しません",
@@ -336,34 +521,92 @@ app.post("/posts", async (c) => {
 			throw err;
 		}
 
-		const responsePost: components["schemas"]["CreatePostResponse"]["post"] = {
-			id: shelterPost.postId,
-			authorName: shelterPost.authorName,
-			shelterId: shelterPost.shelterId,
-			content: shelterPost.content,
-			postedAt: shelterPost.postedAt,
-			createdAt: shelterPost.createdAtByPost,
-		} as components["schemas"]["CreatePostResponse"]["post"];
+		// メディアURLを生成
+		const isDevelopment = c.env.NODE_ENV === "development";
+		const mediaResponse: components["schemas"]["MediaItem"][] = mediaItems.map(
+			(mi) => ({
+				mediaId: mi.id,
+				mediaType: mi.mediaType,
+				fileName: mi.fileName ?? null,
+				url: isDevelopment
+					? `/r2/video/${mi.file_path}`
+					: `/r2/video/${mi.file_path}`,
+			}),
+		);
 
-		if (reqBody.locationTrack && Array.isArray(reqBody.locationTrack)) {
-			responsePost.locationTrack = reqBody.locationTrack.map((pt) => ({
-				recordedAt: pt.recordedAt,
-				latitude: pt.latitude,
-				longitude: pt.longitude,
-			}));
-		}
+		const response: components["schemas"]["CreatePostResponse"] = {
+			postId,
+			media: mediaResponse,
+		};
 
-		responsePost.media = [];
-		if (mediaItems.length > 0) {
-			responsePost.media = mediaItems.map((m) => ({
-				mediaType: m.mediaType,
-				fileName: m.fileName ?? null,
-			}));
-		}
-
-		return c.json({ post: responsePost }, 201);
+		return c.json(response, 201);
 	} catch (error) {
 		console.error("D1 insert post failed", error);
+		const message = error instanceof Error ? error.message : "Unknown error";
+		const errorResponse: components["schemas"]["ErrorResponse"] = {
+			error: message,
+		};
+		return c.json(errorResponse, 500);
+	}
+});
+
+// 投稿の詳細を取得
+app.get("/posts/:id", async (c) => {
+	const postId = c.req.param("id");
+
+	if (!postId) {
+		const errorResponse: components["schemas"]["ErrorResponse"] = {
+			error: "post id is required",
+		};
+		return c.json(errorResponse, 400);
+	}
+
+	const db = dbConnect(c.env);
+	const isDevelopment = c.env.NODE_ENV === "development";
+
+	try {
+		const result = await shelterRepository.fetchPostById(db, postId);
+
+		if (!result) {
+			const errorResponse: components["schemas"]["ErrorResponse"] = {
+				error: "投稿が見つかりません",
+			};
+			return c.json(errorResponse, 404);
+		}
+
+		const { post, media, locationTrack } = result;
+
+		// メディアURLを生成
+		const mediaItems: components["schemas"]["MediaItem"][] = media.map(
+			(mi) => ({
+				mediaId: mi.id,
+				mediaType: mi.mediaType,
+				fileName: mi.fileName ?? null,
+				url: isDevelopment
+					? `/r2/video/${mi.filePath}`
+					: `/r2/video/${mi.filePath}`,
+			}),
+		);
+
+		const response: components["schemas"]["PostDetailResponse"] = {
+			id: post.id,
+			shelterId: post.shelterId,
+			shelterName: post.shelterName,
+			authorName: post.authorName,
+			content: post.content,
+			postedAt: post.postedAt,
+			media: mediaItems,
+			locationTrack: locationTrack.map((lt) => ({
+				recordedAt: lt.recordedAt,
+				latitude: lt.latitude,
+				longitude: lt.longitude,
+			})),
+			commentCount: post.commentCount,
+		};
+
+		return c.json(response);
+	} catch (error) {
+		console.error("D1 fetch post detail failed", error);
 		const message = error instanceof Error ? error.message : "Unknown error";
 		const errorResponse: components["schemas"]["ErrorResponse"] = {
 			error: message,
@@ -448,12 +691,7 @@ app.post("/posts/:id/comments", async (c) => {
 			return c.json(errorResponse, 400);
 		}
 
-		const maybeCrypto = (
-			globalThis as unknown as { crypto?: { randomUUID?: () => string } }
-		).crypto;
-		const commentId = maybeCrypto?.randomUUID
-			? maybeCrypto.randomUUID()
-			: `comment-${Date.now()}`;
+		const commentId = uuidv4();
 
 		try {
 			const result = await shelterRepository.createCommentForPost(db, {

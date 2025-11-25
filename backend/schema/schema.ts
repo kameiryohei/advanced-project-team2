@@ -85,8 +85,8 @@ export interface paths {
 		get?: never;
 		put?: never;
 		/**
-		 * 投稿を新規作成
-		 * @description 避難所の状況を投稿し、必要に応じて災害発生時刻・位置情報の時系列データ・メディアファイル情報を添付します。
+		 * 投稿を新規作成（メディア同梱）
+		 * @description 本文・時刻・位置トラックなどのメタデータと、画像/動画ファイルを同梱して投稿します。
 		 */
 		post: {
 			parameters: {
@@ -97,21 +97,43 @@ export interface paths {
 			};
 			requestBody: {
 				content: {
-					"application/json": components["schemas"]["CreatePostRequest"];
+					"multipart/form-data": {
+						metadata: components["schemas"]["CreatePostRequest"];
+						/** @description 添付するメディアファイル（画像/動画） */
+						mediaFiles?: string[];
+					};
 				};
 			};
 			responses: {
-				/** @description OK */
+				/** @description 投稿を作成しました */
 				201: {
 					headers: {
 						[name: string]: unknown;
 					};
 					content: {
-						"application/json": components["schemas"]["OkResponse"];
+						"application/json": components["schemas"]["CreatePostResponse"];
 					};
 				};
 				/** @description リクエスト内容が不正です */
 				400: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ErrorResponse"];
+					};
+				};
+				/** @description ファイルサイズが許容上限を超えています */
+				413: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ErrorResponse"];
+					};
+				};
+				/** @description 未対応の Content-Type（MIME）です */
+				415: {
 					headers: {
 						[name: string]: unknown;
 					};
@@ -130,6 +152,66 @@ export interface paths {
 				};
 			};
 		};
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/posts/{id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * 投稿の詳細を取得
+		 * @description 指定した投稿IDの詳細情報（メディアURL含む）を取得します。
+		 */
+		get: {
+			parameters: {
+				query?: never;
+				header?: never;
+				path: {
+					/** @description 投稿ID */
+					id: string;
+				};
+				cookie?: never;
+			};
+			requestBody?: never;
+			responses: {
+				/** @description 投稿の詳細を取得しました */
+				200: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["PostDetailResponse"];
+					};
+				};
+				/** @description 投稿が見つかりません */
+				404: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ErrorResponse"];
+					};
+				};
+				/** @description サーバー側でエラーが発生しました */
+				500: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ErrorResponse"];
+					};
+				};
+			};
+		};
+		put?: never;
+		post?: never;
 		delete?: never;
 		options?: never;
 		head?: never;
@@ -457,6 +539,58 @@ export interface components {
 			mediaType: string;
 			/** @description メディア表示名 */
 			fileName?: string | null;
+		};
+		/** @description 投稿作成後のレスポンス */
+		CreatePostResponse: {
+			/** @description 作成された投稿のID */
+			postId: string;
+			/** @description アップロードされたメディア情報 */
+			media: components["schemas"]["MediaItem"][];
+		};
+		/** @description メディアファイル情報 */
+		MediaItem: {
+			/** @description メディアID */
+			mediaId: string;
+			/** @description MIMEタイプ */
+			mediaType: string;
+			/** @description 元のファイル名 */
+			fileName?: string | null;
+			/** @description メディアにアクセスするURL */
+			url: string;
+		};
+		/** @description 投稿詳細情報 */
+		PostDetailResponse: {
+			/** @description 投稿ID */
+			id: string;
+			/** @description 避難所ID */
+			shelterId: number;
+			/** @description 避難所名 */
+			shelterName?: string;
+			/** @description 投稿者の表示名 */
+			authorName: string;
+			/** @description 投稿本文 */
+			content?: string | null;
+			/**
+			 * Format: date-time
+			 * @description 災害等の事象が発生した時刻
+			 */
+			occurredAt?: string | null;
+			/**
+			 * Format: date-time
+			 * @description 投稿された時刻
+			 */
+			postedAt: string;
+			/**
+			 * @description 現在の状況ステータス
+			 * @enum {string|null}
+			 */
+			status?: "緊急" | "重要" | "通常" | null;
+			/** @description 添付されたメディア情報 */
+			media: components["schemas"]["MediaItem"][];
+			/** @description 位置情報の時系列データ */
+			locationTrack?: components["schemas"]["LocationTrackPoint"][];
+			/** @description コメント数 */
+			commentCount: number;
 		};
 		OkResponse: {
 			/**

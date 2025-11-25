@@ -280,6 +280,43 @@ export const createCommentForPost = async (
 	};
 };
 
+/**
+ * 投稿に紐づく位置情報トラックをpost_location_tracksテーブルに一括挿入する
+ */
+export const insertLocationTracks = async (
+	db: Database,
+	postId: string,
+	tracks: Array<{
+		id: string;
+		recordedAt: string;
+		latitude: number;
+		longitude: number;
+	}>,
+): Promise<void> => {
+	if (tracks.length === 0) {
+		return;
+	}
+
+	const now = new Date().toISOString();
+
+	for (const track of tracks) {
+		await db
+			.prepare(
+				`INSERT INTO post_location_tracks (id, post_id, recorded_at, latitude, longitude, created_at)
+			VALUES (?, ?, ?, ?, ?, ?)`,
+			)
+			.bind(
+				track.id,
+				postId,
+				track.recordedAt,
+				track.latitude,
+				track.longitude,
+				now,
+			)
+			.run();
+	}
+};
+
 export const fetchCommentsByPost = async (
 	db: Database,
 	postId: string,
@@ -315,4 +352,105 @@ export const fetchPostIsFreeChat = async (
 
 	if (!row) return null;
 	return row.is_free_chat ?? null;
+};
+
+/**
+ * 投稿詳細情報の型
+ */
+export type PostDetailRow = {
+	id: string;
+	shelterId: number;
+	shelterName: string;
+	authorName: string;
+	content: string | null;
+	postedAt: string;
+	latitude: number;
+	longitude: number;
+	isFreeChat: number;
+	commentCount: number;
+};
+
+export type MediaRow = {
+	id: string;
+	filePath: string;
+	mediaType: string;
+	fileName: string | null;
+};
+
+export type LocationTrackRow = {
+	recordedAt: string;
+	latitude: number;
+	longitude: number;
+};
+
+/**
+ * 投稿IDから投稿の詳細情報を取得する
+ */
+export const fetchPostById = async (
+	db: Database,
+	postId: string,
+): Promise<{
+	post: PostDetailRow;
+	media: MediaRow[];
+	locationTrack: LocationTrackRow[];
+} | null> => {
+	// 投稿の基本情報とコメント数を取得
+	const postRow = await db
+		.prepare(
+			`SELECT
+				p.id,
+				p.shelter_id AS shelterId,
+				s.name AS shelterName,
+				p.author_name AS authorName,
+				p.content,
+				p.posted_at AS postedAt,
+				p.latitude,
+				p.longitude,
+				p.is_free_chat AS isFreeChat,
+				(SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id AND c.deleted_at IS NULL) AS commentCount
+			FROM posts p
+			INNER JOIN shelters s ON p.shelter_id = s.id
+			WHERE p.id = ?`,
+		)
+		.bind(postId)
+		.first<PostDetailRow>();
+
+	if (!postRow) {
+		return null;
+	}
+
+	// メディア情報を取得
+	const { results: mediaRows } = await db
+		.prepare(
+			`SELECT
+				id,
+				file_path AS filePath,
+				media_type AS mediaType,
+				file_name AS fileName
+			FROM media
+			WHERE post_id = ?
+			ORDER BY created_at ASC`,
+		)
+		.bind(postId)
+		.all<MediaRow>();
+
+	// 位置トラック情報を取得
+	const { results: trackRows } = await db
+		.prepare(
+			`SELECT
+				recorded_at AS recordedAt,
+				latitude,
+				longitude
+			FROM post_location_tracks
+			WHERE post_id = ?
+			ORDER BY recorded_at ASC`,
+		)
+		.bind(postId)
+		.all<LocationTrackRow>();
+
+	return {
+		post: postRow,
+		media: mediaRows ?? [],
+		locationTrack: trackRows ?? [],
+	};
 };

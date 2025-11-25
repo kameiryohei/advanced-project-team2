@@ -62,8 +62,8 @@ paths:
     post:
       tags:
         - 投稿
-      summary: 投稿を新規作成
-      description: 避難所の状況を投稿し、必要に応じて災害発生時刻・位置情報の時系列データ・メディアファイルを添付します。
+      summary: 投稿を新規作成（メディア同梱）
+      description: 本文・時刻・位置トラックなどのメタデータと、画像/動画ファイルを同梱して投稿します。
       requestBody:
         required: true
         content:
@@ -71,66 +71,92 @@ paths:
             schema:
               type: object
               properties:
-                shelterId:
-                  type: integer
-                  description: 投稿対象の避難所ID
-                authorName:
-                  type: string
-                  description: 投稿者の表示名
-                content:
-                  type: string
-                  nullable: true
-                  description: 投稿本文
-                occurredAt:
-                  type: string
-                  format: date-time
-                  nullable: true
-                  description: 災害等の事象が発生した時刻
-                status:
-                  type: string
-                  nullable: true
-                  description: 現在の状況ステータス
-                  enum:
-                    - 緊急
-                    - 重要
-                    - 通常
-                locationTrack:
-                  type: string
-                  nullable: true
-                  description: 位置情報の時系列データ（JSON文字列）
-                media:
+                metadata:
+                  $ref: "#/components/schemas/CreatePostRequest"
+                mediaFiles:
                   type: array
+                  description: 添付するメディアファイル（画像/動画）
                   items:
                     type: string
                     format: binary
-                  description: 添付するメディアファイル（動画・画像など）
               required:
-                - shelterId
-                - authorName
+                - metadata
             encoding:
-              media:
-                contentType: video/*, image/*
+              metadata:
+                contentType: application/json
+              mediaFiles:
+                contentType: image/*, video/*
             examples:
               with-media:
                 summary: 位置情報やメディアを含む投稿例
                 value:
-                  shelterId: 101
-                  authorName: 事例太郎
-                  content: 避難所周囲の状況は落ち着いていますが、引き続き注意が必要です。
-                  occurredAt: 2024-06-26T18:30:00Z
-                  status: 緊急
-                  locationTrack: '[{"recordedAt":"2024-06-26T18:20:00Z","latitude":35.6895,"longitude":139.6917},{"recordedAt":"2024-06-26T18:25:00Z","latitude":35.6896,"longitude":139.6920}]'
-                  media:
-                    - "[binary data for evac_situation.jpg]"
+                  metadata:
+                    shelterId: 101
+                    authorName: 事例太郎
+                    content: 避難所周囲の状況は落ち着いていますが、引き続き注意が必要です。
+                    occurredAt: 2024-06-26T18:30:00Z
+                    status: 緊急
+                    locationTrack:
+                      - recordedAt: 2024-06-26T18:20:00Z
+                        latitude: 35.6895
+                        longitude: 139.6917
+                      - recordedAt: 2024-06-26T18:25:00Z
+                        latitude: 35.6896
+                        longitude: 139.6920
+                  # mediaFiles は実ファイル（例：evac_situation.jpg, report.mp4）を form-data で複数添付
       responses:
         "201":
-          description: OK
+          description: 投稿を作成しました
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OkResponse"
+                $ref: "#/components/schemas/CreatePostResponse"
         "400":
           description: リクエスト内容が不正です
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          description: ファイルサイズが許容上限を超えています
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "415":
+          description: 未対応の Content-Type（MIME）です
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: サーバー側でエラーが発生しました
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /posts/{id}:
+    get:
+      tags:
+        - 投稿
+      summary: 投稿の詳細を取得
+      description: 指定した投稿IDの詳細情報（メディアURL含む）を取得します。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 投稿ID
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 投稿の詳細を取得しました
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostDetailResponse"
+        "404":
+          description: 投稿が見つかりません
           content:
             application/json:
               schema:
@@ -372,6 +398,99 @@ components:
           description: メディア表示名
       required:
         - mediaType
+    CreatePostResponse:
+      type: object
+      description: 投稿作成後のレスポンス
+      properties:
+        postId:
+          type: string
+          description: 作成された投稿のID
+        media:
+          type: array
+          description: アップロードされたメディア情報
+          items:
+            $ref: "#/components/schemas/MediaItem"
+      required:
+        - postId
+        - media
+    MediaItem:
+      type: object
+      description: メディアファイル情報
+      properties:
+        mediaId:
+          type: string
+          description: メディアID
+        mediaType:
+          type: string
+          description: MIMEタイプ
+        fileName:
+          type: string
+          nullable: true
+          description: 元のファイル名
+        url:
+          type: string
+          description: メディアにアクセスするURL
+      required:
+        - mediaId
+        - mediaType
+        - url
+    PostDetailResponse:
+      type: object
+      description: 投稿詳細情報
+      properties:
+        id:
+          type: string
+          description: 投稿ID
+        shelterId:
+          type: integer
+          description: 避難所ID
+        shelterName:
+          type: string
+          description: 避難所名
+        authorName:
+          type: string
+          description: 投稿者の表示名
+        content:
+          type: string
+          nullable: true
+          description: 投稿本文
+        occurredAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 災害等の事象が発生した時刻
+        postedAt:
+          type: string
+          format: date-time
+          description: 投稿された時刻
+        status:
+          type: string
+          nullable: true
+          description: 現在の状況ステータス
+          enum:
+            - 緊急
+            - 重要
+            - 通常
+        media:
+          type: array
+          description: 添付されたメディア情報
+          items:
+            $ref: "#/components/schemas/MediaItem"
+        locationTrack:
+          type: array
+          description: 位置情報の時系列データ
+          items:
+            $ref: "#/components/schemas/LocationTrackPoint"
+        commentCount:
+          type: integer
+          description: コメント数
+      required:
+        - id
+        - shelterId
+        - authorName
+        - postedAt
+        - media
+        - commentCount
     OkResponse:
       type: object
       properties:
