@@ -181,6 +181,12 @@ paths:
           description: 対象の投稿ID
           schema:
             type: string
+        - name: isFreeChat
+          in: query
+          required: false
+          description: フリーチャット投稿の場合は `true` を指定し、関連コメント取得をスキップします
+          schema:
+            type: boolean
       responses:
         "200":
           description: コメント一覧を取得しました
@@ -392,6 +398,9 @@ components:
         postId:
           type: string
           description: 対象の投稿ID
+        isFreeChat:
+          type: boolean
+          description: 対象の投稿がフリーチャットの場合は true
         comments:
           type: array
           description: コメント一覧

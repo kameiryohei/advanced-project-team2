@@ -305,7 +305,10 @@ export interface paths {
 		/** 投稿に紐づくコメント一覧を取得 */
 		get: {
 			parameters: {
-				query?: never;
+				query?: {
+					/** @description フリーチャット投稿の場合は `true` を指定し、関連コメント取得をスキップします */
+					isFreeChat?: boolean;
+				};
 				header?: never;
 				path: {
 					/** @description 対象の投稿ID */
@@ -501,6 +504,8 @@ export interface components {
 		PostCommentsResponse: {
 			/** @description 対象の投稿ID */
 			postId: string;
+			/** @description 対象の投稿がフリーチャットの場合は true */
+			isFreeChat?: boolean;
 			/** @description コメント一覧 */
 			comments: components["schemas"]["PostComment"][];
 		};
