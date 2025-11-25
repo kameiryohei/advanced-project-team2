@@ -42,7 +42,7 @@ app.get("/api/geocode/reverse", async (c) => {
 
 	const apiKey = c.env.YAHOO_MAPS_API_KEY;
 	console.log("APIキー確認:", { hasApiKey: !!apiKey });
-	
+
 	if (!apiKey) {
 		return c.json({ error: "APIキーが設定されていません" }, 500);
 	}
