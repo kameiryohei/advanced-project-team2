@@ -12,7 +12,10 @@ import {
 import type React from "react";
 import { useId, useState } from "react";
 import type { CreateCommentRequest } from "@/api/generated/model";
-import { usePostPostsIdComments } from "@/api/generated/team2API";
+import {
+	useGetPostsIdComments,
+	usePostPostsIdComments,
+} from "@/api/generated/team2API";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -123,6 +126,13 @@ export function ConversationThread({
 	// APIクライアントの初期化
 	const createCommentMutation = usePostPostsIdComments();
 
+	// コメント一覧を取得
+	const {
+		data: commentsData,
+		isLoading: isLoadingComments,
+		refetch: refetchComments,
+	} = useGetPostsIdComments(report.id);
+
 	// Generate unique IDs for form elements
 	const responderInputId = useId();
 	const messageInputId = useId();
@@ -147,6 +157,9 @@ export function ConversationThread({
 			});
 
 			console.log("コメントが正常に作成されました:", result);
+
+			// コメント一覧を再取得
+			await refetchComments();
 
 			// 従来のコールバックも呼び出し（既存の機能との互換性）
 			const messageData = {
@@ -309,54 +322,87 @@ export function ConversationThread({
 					<div className="space-y-4">
 						{/* Messages */}
 						<div className="space-y-3 max-h-96 overflow-y-auto">
-							{messages.length === 0 ? (
+							{isLoadingComments ? (
+								<div className="text-center py-8 text-muted-foreground">
+									<MessageCircle className="h-12 w-12 mx-auto mb-3 opacity-50 animate-pulse" />
+									<p>コメントを読み込み中...</p>
+								</div>
+							) : (commentsData?.comments || messages).length === 0 ? (
 								<div className="text-center py-8 text-muted-foreground">
 									<MessageCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
 									<p>まだやり取りがありません</p>
 									<p className="text-sm">最初のメッセージを送信してください</p>
 								</div>
 							) : (
-								messages.map((message) => (
-									<div
-										key={message.id}
-										className={`flex gap-3 ${message.isResponder ? "justify-start" : "justify-end"}`}
-									>
-										<div
-											className={`max-w-[70%] ${message.isResponder ? "order-2" : "order-1"}`}
-										>
-											<div
-												className={`rounded-lg p-3 ${
-													message.isResponder
-														? "bg-card border"
-														: "bg-primary text-primary-foreground"
-												}`}
-											>
-												<div className="flex items-center gap-2 mb-1">
-													<div className="flex items-center gap-1">
-														{message.isResponder ? (
-															<Shield className="h-3 w-3" />
-														) : (
-															<User className="h-3 w-3" />
-														)}
-														<span className="text-xs font-medium">
-															{message.responder}
+								// APIから取得したコメント、またはフォールバックで既存のmessagesを表示
+								[
+									...(commentsData?.comments || []).map((comment) => (
+										<div key={comment.id} className="flex gap-3 justify-start">
+											<div className="order-2 max-w-[70%]">
+												<div className="rounded-lg p-3 bg-card border">
+													<div className="flex items-center gap-2 mb-1">
+														<User className="h-4 w-4" />
+														<span className="font-medium text-sm">
+															{comment.authorName}
 														</span>
+														<Badge variant="outline" className="text-xs">
+															対応者
+														</Badge>
 													</div>
-													<Badge
-														className={`text-xs ${getStatusColor(message.status)}`}
-													>
-														{message.status}
-													</Badge>
-												</div>
-												<p className="text-sm">{message.message}</p>
-												<div className="flex items-center gap-1 mt-2 opacity-70">
-													<Clock className="h-3 w-3" />
-													<span className="text-xs">{message.time}</span>
+													<p className="text-sm">{comment.content}</p>
+													<span className="text-xs text-muted-foreground mt-2 block">
+														<Clock className="inline h-3 w-3 mr-1" />
+														{new Date(comment.createdAt).toLocaleString(
+															"ja-JP",
+														)}
+													</span>
 												</div>
 											</div>
 										</div>
-									</div>
-								))
+									)),
+									// 既存のmessagesもフォールバックとして表示
+									...messages.map((message) => (
+										<div
+											key={message.id}
+											className={`flex gap-3 ${message.isResponder ? "justify-start" : "justify-end"}`}
+										>
+											<div
+												className={`max-w-[70%] ${message.isResponder ? "order-2" : "order-1"}`}
+											>
+												<div
+													className={`rounded-lg p-3 ${
+														message.isResponder
+															? "bg-card border"
+															: "bg-primary text-primary-foreground"
+													}`}
+												>
+													<div className="flex items-center gap-2 mb-1">
+														<div className="flex items-center gap-1">
+															{message.isResponder ? (
+																<Shield className="h-3 w-3" />
+															) : (
+																<User className="h-3 w-3" />
+															)}
+															<span className="text-xs font-medium">
+																{message.responder}
+															</span>
+														</div>
+														<Badge
+															className={`text-xs ${getStatusColor(message.status)}`}
+														>
+															{message.status}
+														</Badge>
+													</div>
+													<p className="text-sm">{message.message}</p>
+													<div className="flex items-center gap-1 mt-2 opacity-70">
+														<Clock className="h-3 w-3" />
+														<span className="text-xs">{message.time}</span>
+													</div>
+												</div>
+											</div>
+										</div>
+									)),
+								]
 							)}
 						</div>
 
