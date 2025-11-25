@@ -63,13 +63,65 @@ paths:
       tags:
         - 投稿
       summary: 投稿を新規作成
-      description: 避難所の状況を投稿し、必要に応じて災害発生時刻・位置情報の時系列データ・メディアファイル情報を添付します。
+      description: 避難所の状況を投稿し、必要に応じて災害発生時刻・位置情報の時系列データ・メディアファイルを添付します。
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
-              $ref: "#/components/schemas/CreatePostRequest"
+              type: object
+              properties:
+                shelterId:
+                  type: integer
+                  description: 投稿対象の避難所ID
+                authorName:
+                  type: string
+                  description: 投稿者の表示名
+                content:
+                  type: string
+                  nullable: true
+                  description: 投稿本文
+                occurredAt:
+                  type: string
+                  format: date-time
+                  nullable: true
+                  description: 災害等の事象が発生した時刻
+                status:
+                  type: string
+                  nullable: true
+                  description: 現在の状況ステータス
+                  enum:
+                    - 緊急
+                    - 重要
+                    - 通常
+                locationTrack:
+                  type: string
+                  nullable: true
+                  description: 位置情報の時系列データ（JSON文字列）
+                media:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: 添付するメディアファイル（動画・画像など）
+              required:
+                - shelterId
+                - authorName
+            encoding:
+              media:
+                contentType: video/*, image/*
+            examples:
+              with-media:
+                summary: 位置情報やメディアを含む投稿例
+                value:
+                  shelterId: 101
+                  authorName: 事例太郎
+                  content: 避難所周囲の状況は落ち着いていますが、引き続き注意が必要です。
+                  occurredAt: 2024-06-26T18:30:00Z
+                  status: 緊急
+                  locationTrack: '[{"recordedAt":"2024-06-26T18:20:00Z","latitude":35.6895,"longitude":139.6917},{"recordedAt":"2024-06-26T18:25:00Z","latitude":35.6896,"longitude":139.6920}]'
+                  media:
+                    - "[binary data for evac_situation.jpg]"
       responses:
         "201":
           description: OK
