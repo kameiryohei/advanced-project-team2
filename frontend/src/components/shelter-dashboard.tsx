@@ -124,7 +124,11 @@ const shelterData = {
 		population: 10,
 		location: "愛知県名古屋市天白区八事山",
 	},
-	"3": { name: "避難所3", population: 10, location: "愛知県東区矢田南四丁目" },
+	"3": {
+		name: "避難所3",
+		population: 10,
+		location: "愛知県東区矢田南四丁目",
+	},
 };
 
 const getStatusColor = (status: string) => {
