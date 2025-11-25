@@ -100,12 +100,12 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 	const attachmentId = useId();
 
 	// バックエンドAPI経由での逆ジオコーディング関数
-	const reverseGeocode = useCallback(async (
-		latitude: number,
-		longitude: number,
-	): Promise<string | null> => {
+	const reverseGeocode = useCallback(
+		async (latitude: number, longitude: number): Promise<string | null> => {
 		try {
-			console.log(`逆ジオコーディング開始: lat=${latitude}, lon=${longitude}`);
+				console.log(
+					`逆ジオコーディング開始: lat=${latitude}, lon=${longitude}`,
+				);
 
 			const response = await fetch(
 				`http://localhost:8787/api/geocode/reverse?lat=${latitude}&lon=${longitude}`,
@@ -131,7 +131,11 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 			console.log("逆ジオコーディング結果:", data);
 
 			// Yahoo APIのレスポンス構造に合わせて住所を取得
-			if (data.Feature && data.Feature.length > 0 && data.Feature[0].Property) {
+				if (
+					data.Feature &&
+					data.Feature.length > 0 &&
+					data.Feature[0].Property
+				) {
 				const address = data.Feature[0].Property.Address;
 				console.log("取得した住所:", address);
 				return address;
@@ -143,10 +147,13 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 			console.error("逆ジオコーディングエラー:", error);
 			return null;
 		}
-	}, []);
+		},
+		[],
+	);
 
 	// 位置情報のアップロード関数
-	const uploadLocation = useCallback(async (latitude: number, longitude: number) => {
+	const uploadLocation = useCallback(
+		async (latitude: number, longitude: number) => {
 		try {
 			console.log("位置情報を送信中:", { latitude, longitude });
 			
@@ -173,7 +180,9 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 		} catch (error) {
 			console.error("位置情報送信エラー:", error);
 		}
-	}, []);
+		},
+		[],
+	);
 
 	// 位置情報取得処理
 	const handleGetLocation = useCallback(() => {
