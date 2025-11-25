@@ -72,11 +72,11 @@ paths:
               $ref: "#/components/schemas/CreatePostRequest"
       responses:
         "201":
-          description: 投稿を作成しました
+          description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CreatePostResponse"
+                $ref: "#/components/schemas/OkResponse"
         "400":
           description: リクエスト内容が不正です
           content:
@@ -170,6 +170,36 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
   /posts/{id}/comments:
+    get:
+      tags:
+        - 投稿
+      summary: 投稿に紐づくコメント一覧を取得
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 対象の投稿ID
+          schema:
+            type: string
+      responses:
+        "200":
+          description: コメント一覧を取得しました
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostCommentsResponse"
+        "400":
+          description: リクエスト内容が不正です
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: サーバー側でエラーが発生しました
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     post:
       tags:
         - 投稿
@@ -227,11 +257,6 @@ components:
           type: string
           nullable: true
           description: 投稿本文
-        postedAt:
-          type: string
-          format: date-time
-          nullable: true
-          description: 投稿時刻（未指定時はサーバー時刻を使用）
         occurredAt:
           type: string
           format: date-time
@@ -289,64 +314,15 @@ components:
           description: メディア表示名
       required:
         - mediaType
-    CreatePostResponse:
+    OkResponse:
       type: object
       properties:
-        post:
-          type: object
-          properties:
-            id:
-              type: string
-              description: 作成された投稿ID
-            authorName:
-              type: string
-              description: 投稿者の表示名
-            shelterId:
-              type: integer
-              description: 投稿対象の避難所ID
-            content:
-              type: string
-              nullable: true
-              description: 投稿本文
-            postedAt:
-              type: string
-              format: date-time
-              description: 投稿時刻
-            createdAt:
-              type: string
-              format: date-time
-              description: サーバーでの作成時刻
-            occurredAt:
-              type: string
-              format: date-time
-              nullable: true
-              description: 災害等の事象が発生した時刻
-            status:
-              type: string
-              nullable: true
-              description: 現在の状況ステータス
-              enum:
-                - 緊急
-                - 重要
-                - 通常
-            locationTrack:
-              type: array
-              description: 保存された位置情報の時系列データ
-              items:
-                $ref: "#/components/schemas/LocationTrackPoint"
-            media:
-              type: array
-              description: 添付されたメディア情報
-              items:
-                $ref: "#/components/schemas/PostMediaItem"
-          required:
-            - id
-            - authorName
-            - shelterId
-            - postedAt
-            - createdAt
+        message:
+          type: string
+          description: 処理結果の簡易メッセージ
+          example: OK
       required:
-        - post
+        - message
     CreateCommentRequest:
       type: object
       properties:
@@ -389,6 +365,41 @@ components:
             - createdAt
       required:
         - comment
+    PostComment:
+      type: object
+      properties:
+        id:
+          type: string
+          description: コメントID
+        authorName:
+          type: string
+          description: コメント投稿者の表示名
+        content:
+          type: string
+          description: コメント本文
+        createdAt:
+          type: string
+          format: date-time
+          description: コメントの作成時刻
+      required:
+        - id
+        - authorName
+        - content
+        - createdAt
+    PostCommentsResponse:
+      type: object
+      properties:
+        postId:
+          type: string
+          description: 対象の投稿ID
+        comments:
+          type: array
+          description: コメント一覧
+          items:
+            $ref: "#/components/schemas/PostComment"
+      required:
+        - postId
+        - comments
     ShelterListWithCountResponse:
       type: object
       properties:
