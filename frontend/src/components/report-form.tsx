@@ -13,7 +13,7 @@ import {
 	X,
 } from "lucide-react";
 import type React from "react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { CreatePostRequest } from "@/api/generated/model";
 import { usePostPosts } from "@/api/generated/team2API";
 import { Button } from "@/components/ui/button";
@@ -85,7 +85,7 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 		latitude: number;
 		longitude: number;
 	} | null>(null);
-	const [gpsStatus, setGpsStatus] = useState("");
+	const [gpsStatus, setGpsStatus] = useState("位置情報を取得中...");
 
 	const [videoPreview, setVideoPreview] = useState<string | null>(null);
 	const [recordingDuration, setRecordingDuration] = useState(0);
@@ -100,12 +100,12 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 	const attachmentId = useId();
 
 	// バックエンドAPI経由での逆ジオコーディング関数
-	const reverseGeocode = async (
-		latitude: number,
-		longitude: number,
-	): Promise<string | null> => {
+	const reverseGeocode = useCallback(
+		async (latitude: number, longitude: number): Promise<string | null> => {
 		try {
-			console.log(`逆ジオコーディング開始: lat=${latitude}, lon=${longitude}`);
+				console.log(
+					`逆ジオコーディング開始: lat=${latitude}, lon=${longitude}`,
+				);
 
 			const response = await fetch(
 				`http://localhost:8787/api/geocode/reverse?lat=${latitude}&lon=${longitude}`,
@@ -131,7 +131,11 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 			console.log("逆ジオコーディング結果:", data);
 
 			// Yahoo APIのレスポンス構造に合わせて住所を取得
-			if (data.Feature && data.Feature.length > 0 && data.Feature[0].Property) {
+				if (
+					data.Feature &&
+					data.Feature.length > 0 &&
+					data.Feature[0].Property
+				) {
 				const address = data.Feature[0].Property.Address;
 				console.log("取得した住所:", address);
 				return address;
@@ -143,11 +147,16 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 			console.error("逆ジオコーディングエラー:", error);
 			return null;
 		}
-	};
+		},
+		[],
+	);
 
 	// 位置情報のアップロード関数
-	const uploadLocation = async (latitude: number, longitude: number) => {
+	const uploadLocation = useCallback(
+		async (latitude: number, longitude: number) => {
 		try {
+			console.log("位置情報を送信中:", { latitude, longitude });
+			
 			const response = await fetch("http://localhost:8787/api/location", {
 				method: "POST",
 				headers: {
@@ -156,11 +165,14 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 				body: JSON.stringify({
 					latitude,
 					longitude,
+					timestamp: new Date().toISOString(),
 				}),
 			});
 
 			if (!response.ok) {
-				throw new Error("位置情報の送信に失敗しました");
+				const errorText = await response.text();
+				console.error("位置情報送信エラー詳細:", errorText);
+				throw new Error(`位置情報の送信に失敗しました: ${response.status}`);
 			}
 
 			const result = await response.json();
@@ -168,10 +180,12 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 		} catch (error) {
 			console.error("位置情報送信エラー:", error);
 		}
-	};
+		},
+		[],
+	);
 
 	// 位置情報取得処理
-	const handleGetLocation = () => {
+	const handleGetLocation = useCallback(() => {
 		setGpsStatus("位置情報を取得中...");
 
 		if (!navigator.geolocation) {
@@ -215,7 +229,7 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 				maximumAge: 0,
 			},
 		);
-	};
+	}, [reverseGeocode, uploadLocation]);
 
 	// 位置情報のクリア処理
 	const handleClearLocation = () => {
@@ -473,6 +487,11 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 		}
 	};
 
+	// コンポーネントマウント時に自動的に位置情報を取得
+	useEffect(() => {
+		handleGetLocation();
+	}, [handleGetLocation]);
+
 	useEffect(() => {
 		return () => {
 			if (stream) {
@@ -577,7 +596,7 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 												className="w-full"
 											>
 												<MapPin className="h-4 w-4 mr-2" />
-												位置情報を取得
+												位置情報を再取得
 											</Button>
 											{gpsStatus && (
 												<p className="text-sm text-muted-foreground">
