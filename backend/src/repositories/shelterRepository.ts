@@ -279,3 +279,40 @@ export const createCommentForPost = async (
 		postId: String(result.postId),
 	};
 };
+
+export const fetchCommentsByPost = async (
+	db: Database,
+	postId: string,
+): Promise<
+	Array<{ id: string; authorName: string; content: string; createdAt: string }>
+> => {
+	const { results } = await db
+		.prepare(
+			`SELECT id, author_name AS authorName, content, created_at AS createdAt
+			 FROM comments
+			 WHERE post_id = ? AND deleted_at IS NULL
+			 ORDER BY created_at ASC`,
+		)
+		.bind(postId)
+		.all<{
+			id: string;
+			authorName: string;
+			content: string;
+			createdAt: string;
+		}>();
+
+	return results ?? [];
+};
+
+export const fetchPostIsFreeChat = async (
+	db: Database,
+	postId: string,
+): Promise<number | null> => {
+	const row = await db
+		.prepare("SELECT is_free_chat FROM posts WHERE id = ?")
+		.bind(postId)
+		.first<{ is_free_chat: number }>();
+
+	if (!row) return null;
+	return row.is_free_chat ?? null;
+};
