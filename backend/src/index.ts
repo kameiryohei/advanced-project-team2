@@ -34,11 +34,15 @@ app.get("/api/geocode/reverse", async (c) => {
 	const lat = c.req.query("lat");
 	const lon = c.req.query("lon");
 
+	console.log("逆ジオコーディングリクエスト:", { lat, lon });
+
 	if (!lat || !lon) {
 		return c.json({ error: "緯度と経度が必要です" }, 400);
 	}
 
 	const apiKey = c.env.YAHOO_MAPS_API_KEY;
+	console.log("APIキー確認:", { hasApiKey: !!apiKey });
+
 	if (!apiKey) {
 		return c.json({ error: "APIキーが設定されていません" }, 500);
 	}
@@ -50,6 +54,8 @@ app.get("/api/geocode/reverse", async (c) => {
 			apiKey,
 		);
 
+		console.log("Yahoo APIレスポンス:", JSON.stringify(data, null, 2));
+
 		if (data.Feature.length === 0) {
 			const errorResponse: components["schemas"]["ErrorResponse"] = {
 				error: "住所が見つかりませんでした",
@@ -60,9 +66,11 @@ app.get("/api/geocode/reverse", async (c) => {
 		const successResponse: paths["/api/geocode/reverse"]["get"]["responses"]["200"]["content"]["application/json"] =
 			data;
 		return c.json(successResponse);
-	} catch {
+	} catch (error) {
+		console.error("逆ジオコーディングエラー:", error);
+		const message = error instanceof Error ? error.message : "Unknown error";
 		const errorResponse: components["schemas"]["ErrorResponse"] = {
-			error: "住所の取得に失敗しました",
+			error: `住所の取得に失敗しました: ${message}`,
 		};
 		return c.json(errorResponse, 500);
 	}

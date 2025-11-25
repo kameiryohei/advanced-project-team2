@@ -71,8 +71,8 @@ const mockReports: Report[] = [
 		status: "unassigned",
 		reporter: "佐藤",
 		responder: "未対応",
-		latitude: 35.1370121,
-		longitude: 136.965344,
+		latitude: 35.1629441,
+		longitude: 136.910207,
 	},
 ];
 
