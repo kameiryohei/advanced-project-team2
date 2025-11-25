@@ -114,9 +114,17 @@ const mockMessages: { [key: string]: Message[] } = {
 };
 
 const shelterData = {
-	"1": { name: "避難所1", population: 5, location: "愛知県塩釜口" },
-	"2": { name: "避難所2", population: 10, location: "愛知県名古屋市中区" },
-	"3": { name: "避難所3", population: 10, location: "愛知県豊田市" },
+	"1": {
+		name: "避難所1",
+		population: 5,
+		location: "愛知県名古屋市天白区塩釜口一丁目",
+	},
+	"2": {
+		name: "避難所2",
+		population: 10,
+		location: "愛知県名古屋市天白区八事山",
+	},
+	"3": { name: "避難所3", population: 10, location: "愛知県東区矢田南四丁目" },
 };
 
 const getStatusColor = (status: string) => {
