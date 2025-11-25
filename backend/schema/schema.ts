@@ -101,13 +101,13 @@ export interface paths {
 				};
 			};
 			responses: {
-				/** @description 投稿を作成しました */
+				/** @description OK */
 				201: {
 					headers: {
 						[name: string]: unknown;
 					};
 					content: {
-						"application/json": components["schemas"]["CreatePostResponse"];
+						"application/json": components["schemas"]["OkResponse"];
 					};
 				};
 				/** @description リクエスト内容が不正です */
@@ -302,7 +302,48 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
-		get?: never;
+		/** 投稿に紐づくコメント一覧を取得 */
+		get: {
+			parameters: {
+				query?: never;
+				header?: never;
+				path: {
+					/** @description 対象の投稿ID */
+					id: string;
+				};
+				cookie?: never;
+			};
+			requestBody?: never;
+			responses: {
+				/** @description コメント一覧を取得しました */
+				200: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["PostCommentsResponse"];
+					};
+				};
+				/** @description リクエスト内容が不正です */
+				400: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ErrorResponse"];
+					};
+				};
+				/** @description サーバー側でエラーが発生しました */
+				500: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ErrorResponse"];
+					};
+				};
+			};
+		};
 		put?: never;
 		/** コメントを新規投稿 */
 		post: {
@@ -378,11 +419,6 @@ export interface components {
 			content?: string | null;
 			/**
 			 * Format: date-time
-			 * @description 投稿時刻（未指定時はサーバー時刻を使用）
-			 */
-			postedAt?: string | null;
-			/**
-			 * Format: date-time
 			 * @description 災害等の事象が発生した時刻
 			 */
 			occurredAt?: string | null;
@@ -419,41 +455,12 @@ export interface components {
 			/** @description メディア表示名 */
 			fileName?: string | null;
 		};
-		CreatePostResponse: {
-			post: {
-				/** @description 作成された投稿ID */
-				id: string;
-				/** @description 投稿者の表示名 */
-				authorName: string;
-				/** @description 投稿対象の避難所ID */
-				shelterId: number;
-				/** @description 投稿本文 */
-				content?: string | null;
-				/**
-				 * Format: date-time
-				 * @description 投稿時刻
-				 */
-				postedAt: string;
-				/**
-				 * Format: date-time
-				 * @description サーバーでの作成時刻
-				 */
-				createdAt: string;
-				/**
-				 * Format: date-time
-				 * @description 災害等の事象が発生した時刻
-				 */
-				occurredAt?: string | null;
-				/**
-				 * @description 現在の状況ステータス
-				 * @enum {string|null}
-				 */
-				status?: "緊急" | "重要" | "通常" | null;
-				/** @description 保存された位置情報の時系列データ */
-				locationTrack?: components["schemas"]["LocationTrackPoint"][];
-				/** @description 添付されたメディア情報 */
-				media?: components["schemas"]["PostMediaItem"][];
-			};
+		OkResponse: {
+			/**
+			 * @description 処理結果の簡易メッセージ
+			 * @example OK
+			 */
+			message: string;
 		};
 		CreateCommentRequest: {
 			/** @description コメント投稿者の表示名 */
@@ -477,6 +484,25 @@ export interface components {
 				 */
 				createdAt: string;
 			};
+		};
+		PostComment: {
+			/** @description コメントID */
+			id: string;
+			/** @description コメント投稿者の表示名 */
+			authorName: string;
+			/** @description コメント本文 */
+			content: string;
+			/**
+			 * Format: date-time
+			 * @description コメントの作成時刻
+			 */
+			createdAt: string;
+		};
+		PostCommentsResponse: {
+			/** @description 対象の投稿ID */
+			postId: string;
+			/** @description コメント一覧 */
+			comments: components["schemas"]["PostComment"][];
 		};
 		ShelterListWithCountResponse: {
 			/** @description 登録されている避難所の総数 */
