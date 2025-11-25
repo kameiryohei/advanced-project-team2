@@ -27,9 +27,11 @@ import type {
   CreateCommentRequest,
   CreateCommentResponse,
   CreatePostRequest,
-  CreatePostResponse,
   ErrorResponse,
   GetApiGeocodeReverseParams,
+  GetPostsIdCommentsParams,
+  OkResponse,
+  PostCommentsResponse,
   ReverseGeocoderResponse,
   ShelterDetails,
   ShelterListWithCountResponse,
@@ -148,7 +150,7 @@ export const postPosts = (
 ) => {
       
       
-      return axiosInstance<CreatePostResponse>(
+      return axiosInstance<OkResponse>(
       {url: `/posts`, method: 'POST',
       headers: {'Content-Type': 'application/json', },
       data: createPostRequest, signal
@@ -469,6 +471,106 @@ export function useGetSheltersIdPosts<TData = Awaited<ReturnType<typeof getShelt
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetSheltersIdPostsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+/**
+ * @summary 投稿に紐づくコメント一覧を取得
+ */
+export const getPostsIdComments = (
+    id: string,
+    params?: GetPostsIdCommentsParams,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return axiosInstance<PostCommentsResponse>(
+      {url: `/posts/${id}/comments`, method: 'GET',
+        params, signal
+    },
+      options);
+    }
+  
+
+
+
+export const getGetPostsIdCommentsQueryKey = (id?: string,
+    params?: GetPostsIdCommentsParams,) => {
+    return [
+    `/posts/${id}/comments`, ...(params ? [params]: [])
+    ] as const;
+    }
+
+    
+export const getGetPostsIdCommentsQueryOptions = <TData = Awaited<ReturnType<typeof getPostsIdComments>>, TError = ErrorType<ErrorResponse | ErrorResponse>>(id: string,
+    params?: GetPostsIdCommentsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPostsIdComments>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPostsIdCommentsQueryKey(id,params);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPostsIdComments>>> = ({ signal }) => getPostsIdComments(id,params, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPostsIdComments>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetPostsIdCommentsQueryResult = NonNullable<Awaited<ReturnType<typeof getPostsIdComments>>>
+export type GetPostsIdCommentsQueryError = ErrorType<ErrorResponse | ErrorResponse>
+
+
+export function useGetPostsIdComments<TData = Awaited<ReturnType<typeof getPostsIdComments>>, TError = ErrorType<ErrorResponse | ErrorResponse>>(
+ id: string,
+    params: undefined |  GetPostsIdCommentsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPostsIdComments>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPostsIdComments>>,
+          TError,
+          Awaited<ReturnType<typeof getPostsIdComments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetPostsIdComments<TData = Awaited<ReturnType<typeof getPostsIdComments>>, TError = ErrorType<ErrorResponse | ErrorResponse>>(
+ id: string,
+    params?: GetPostsIdCommentsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPostsIdComments>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPostsIdComments>>,
+          TError,
+          Awaited<ReturnType<typeof getPostsIdComments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetPostsIdComments<TData = Awaited<ReturnType<typeof getPostsIdComments>>, TError = ErrorType<ErrorResponse | ErrorResponse>>(
+ id: string,
+    params?: GetPostsIdCommentsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPostsIdComments>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 投稿に紐づくコメント一覧を取得
+ */
+
+export function useGetPostsIdComments<TData = Awaited<ReturnType<typeof getPostsIdComments>>, TError = ErrorType<ErrorResponse | ErrorResponse>>(
+ id: string,
+    params?: GetPostsIdCommentsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPostsIdComments>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetPostsIdCommentsQueryOptions(id,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

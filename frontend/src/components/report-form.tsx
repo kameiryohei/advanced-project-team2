@@ -249,7 +249,7 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 				shelterId: 1, // デフォルトの避難所ID（後で動的に設定可能）
 				authorName: formData.reporter,
 				content: `${formData.details}\n\n発生場所: ${formData.address}`,
-				postedAt: new Date(formData.datetime).toISOString(),
+				occurredAt: new Date(formData.datetime).toISOString(),
 				status: formData.status as "緊急" | "重要" | "通常",
 				locationTrack: coords
 					? [
@@ -281,7 +281,7 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 
 			// 従来のコールバックも呼び出し（既存の機能との互換性）
 			const reportData: ReportData = {
-				id: result.post.id,
+				id: Math.random().toString(),
 				datetime: new Date(formData.datetime)
 					.toLocaleString("ja-JP", {
 						year: "numeric",
