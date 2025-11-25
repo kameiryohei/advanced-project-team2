@@ -46,7 +46,7 @@ export type ShelterPosts = {
 	longitude: number;
 	is_synced: number;
 	createdAtByPost: string;
-	isFreeChat: number;
+	is_free_chat: number;
 	mediaId: string | null;
 	filePath: string | null;
 	mediaType: string | null;
@@ -146,7 +146,7 @@ export const insertShelterPost = async (
 	try {
 		await db
 			.prepare(
-				`INSERT INTO posts (id, author_name, shelter_id, content, latitude, longitude, is_synced, posted_at, created_at, isFreechat)
+				`INSERT INTO posts (id, author_name, shelter_id, content, latitude, longitude, is_synced, posted_at, created_at, is_free_chat)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			)
 			.bind(
@@ -159,7 +159,7 @@ export const insertShelterPost = async (
 				post.is_synced,
 				post.postedAt,
 				post.createdAtByPost,
-				post.isFreeChat,
+				post.is_free_chat,
 			)
 			.run();
 

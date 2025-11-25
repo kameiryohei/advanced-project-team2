@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS posts (
     posted_at DATETIME NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    isFreeChat INTEGER NOT NULL DEFAULT 0,
+    is_free_chat INTEGER NOT NULL DEFAULT 0,
     occurred_at DATETIME,
     status TEXT,
     deleted_at DATETIME
@@ -80,7 +80,7 @@ INSERT OR IGNORE INTO shelters (id, name, address, latitude, longitude, created_
 (10, 'J地区会館', '名古屋市南区10-10-10', 35.1101, 136.9201, '2025-10-28 09:00:00');
 
 -- 2. 投稿テーブル
-INSERT OR IGNORE INTO posts (id, author_name, shelter_id, content, latitude, longitude, is_synced, posted_at, created_at, updated_at, isFreeChat, occurred_at, status, deleted_at) VALUES
+INSERT OR IGNORE INTO posts (id, author_name, shelter_id, content, latitude, longitude, is_synced, posted_at, created_at, updated_at, is_free_chat, occurred_at, status, deleted_at) VALUES
 ('a0000001-0000-0000-0000-000000000001', '佐藤', 1, 'A小学校、まだ余裕あります。水あります。', 35.1701, 136.9001, 0, '2025-10-28 10:00:00', '2025-10-28 10:00:00', '2025-10-28 10:00:00', 0, '2025-10-28 09:55:00', '通常', NULL),
 ('a0000002-0000-0000-0000-000000000002', '鈴木', 2, 'B中学校、混雑してきました。毛布が足りません。', 35.1691, 136.8801, 0, '2025-10-28 10:05:00', '2025-10-28 10:05:00', '2025-10-28 10:05:00', 0, '2025-10-28 09:57:00', '緊急', NULL),
 ('a0000003-0000-0000-0000-000000000003', '高橋', 1, 'A小学校の体育館裏、土砂が崩れそうです。危険です。', 35.1702, 136.9002, 0, '2025-10-28 10:10:00', '2025-10-28 10:10:00', '2025-10-28 10:10:00', 0, '2025-10-28 10:05:00', '緊急', NULL),

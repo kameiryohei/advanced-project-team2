@@ -270,7 +270,7 @@ app.post("/posts", async (c) => {
 			longitude: firstLocation ? firstLocation.longitude : 0,
 			is_synced: 0,
 			createdAtByPost: now,
-			isFreeChat: 0,
+			is_free_chat: 0,
 			mediaId: null,
 			filePath: null,
 			mediaType: null,
