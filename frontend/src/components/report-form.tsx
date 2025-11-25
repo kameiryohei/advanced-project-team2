@@ -29,6 +29,9 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
+// 緊急度の型定義
+type Priority = "緊急" | "重要" | "通常";
+
 interface ReportData {
 	id: string;
 	datetime: string;
@@ -65,7 +68,8 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 		datetime: getJSTDatetimeString(),
 		address: "",
 		details: "",
-		status: "unassigned",
+		status: "unassigned" as ReportData["status"],
+		priority: "通常" as Priority,
 		reporter: "",
 		attachment: null as File | null,
 		responder: "未対応",
@@ -98,55 +102,56 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 	const detailsId = useId();
 	const reporterId = useId();
 	const attachmentId = useId();
+	const priorityId = useId();
 
 	// バックエンドAPI経由での逆ジオコーディング関数
 	const reverseGeocode = useCallback(
 		async (latitude: number, longitude: number): Promise<string | null> => {
-		try {
+			try {
 				console.log(
 					`逆ジオコーディング開始: lat=${latitude}, lon=${longitude}`,
 				);
 
-			const response = await fetch(
-				`http://localhost:8787/api/geocode/reverse?lat=${latitude}&lon=${longitude}`,
-				{
-					method: "GET",
-					headers: {
-						"Content-Type": "application/json",
+				const response = await fetch(
+					`http://localhost:8787/api/geocode/reverse?lat=${latitude}&lon=${longitude}`,
+					{
+						method: "GET",
+						headers: {
+							"Content-Type": "application/json",
+						},
 					},
-				},
-			);
-
-			console.log(`逆ジオコーディングレスポンス: ${response.status}`);
-
-			if (!response.ok) {
-				const errorText = await response.text();
-				console.error("APIエラーレスポンス:", errorText);
-				throw new Error(
-					`住所の取得に失敗しました (${response.status}): ${errorText}`,
 				);
-			}
 
-			const data = await response.json();
-			console.log("逆ジオコーディング結果:", data);
+				console.log(`逆ジオコーディングレスポンス: ${response.status}`);
 
-			// Yahoo APIのレスポンス構造に合わせて住所を取得
+				if (!response.ok) {
+					const errorText = await response.text();
+					console.error("APIエラーレスポンス:", errorText);
+					throw new Error(
+						`住所の取得に失敗しました (${response.status}): ${errorText}`,
+					);
+				}
+
+				const data = await response.json();
+				console.log("逆ジオコーディング結果:", data);
+
+				// Yahoo APIのレスポンス構造に合わせて住所を取得
 				if (
 					data.Feature &&
 					data.Feature.length > 0 &&
 					data.Feature[0].Property
 				) {
-				const address = data.Feature[0].Property.Address;
-				console.log("取得した住所:", address);
-				return address;
-			}
+					const address = data.Feature[0].Property.Address;
+					console.log("取得した住所:", address);
+					return address;
+				}
 
-			console.log("住所データが見つかりませんでした");
-			return null;
-		} catch (error) {
-			console.error("逆ジオコーディングエラー:", error);
-			return null;
-		}
+				console.log("住所データが見つかりませんでした");
+				return null;
+			} catch (error) {
+				console.error("逆ジオコーディングエラー:", error);
+				return null;
+			}
 		},
 		[],
 	);
@@ -154,32 +159,32 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 	// 位置情報のアップロード関数
 	const uploadLocation = useCallback(
 		async (latitude: number, longitude: number) => {
-		try {
-			console.log("位置情報を送信中:", { latitude, longitude });
-			
-			const response = await fetch("http://localhost:8787/api/location", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					latitude,
-					longitude,
-					timestamp: new Date().toISOString(),
-				}),
-			});
+			try {
+				console.log("位置情報を送信中:", { latitude, longitude });
 
-			if (!response.ok) {
-				const errorText = await response.text();
-				console.error("位置情報送信エラー詳細:", errorText);
-				throw new Error(`位置情報の送信に失敗しました: ${response.status}`);
+				const response = await fetch("http://localhost:8787/api/location", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						latitude,
+						longitude,
+						timestamp: new Date().toISOString(),
+					}),
+				});
+
+				if (!response.ok) {
+					const errorText = await response.text();
+					console.error("位置情報送信エラー詳細:", errorText);
+					throw new Error(`位置情報の送信に失敗しました: ${response.status}`);
+				}
+
+				const result = await response.json();
+				console.log("位置情報が送信されました:", result);
+			} catch (error) {
+				console.error("位置情報送信エラー:", error);
 			}
-
-			const result = await response.json();
-			console.log("位置情報が送信されました:", result);
-		} catch (error) {
-			console.error("位置情報送信エラー:", error);
-		}
 		},
 		[],
 	);
@@ -250,7 +255,7 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 				authorName: formData.reporter,
 				content: `${formData.details}\n\n発生場所: ${formData.address}`,
 				occurredAt: new Date(formData.datetime).toISOString(),
-				status: formData.status as "緊急" | "重要" | "通常",
+				status: formData.priority,
 				locationTrack: coords
 					? [
 							{
@@ -295,7 +300,7 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 					.replace(",", ""),
 				address: formData.address,
 				details: formData.details,
-				status: "unassigned",
+				status: formData.status,
 				reporter: formData.reporter,
 				attachment: formData.attachment ? formData.attachment.name : undefined,
 				responder: formData.responder,
@@ -645,30 +650,30 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 
 						{/* Priority/Status */}
 						<div className="space-y-2">
-							<Label htmlFor="status">緊急度</Label>
+							<Label htmlFor={priorityId}>緊急度</Label>
 							<Select
-								value={formData.status}
-								onValueChange={(value) =>
-									setFormData((prev) => ({ ...prev, status: value }))
+								value={formData.priority}
+								onValueChange={(value: Priority) =>
+									setFormData((prev) => ({ ...prev, priority: value }))
 								}
 							>
-								<SelectTrigger>
+								<SelectTrigger id={priorityId}>
 									<SelectValue placeholder="緊急度を選択" />
 								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="unassigned">
+								<SelectContent className="z-[10002]">
+									<SelectItem value="緊急">
 										<div className="flex items-center gap-2">
 											<div className="w-2 h-2 rounded-full bg-destructive"></div>
 											緊急 - 即座に対応が必要
 										</div>
 									</SelectItem>
-									<SelectItem value="in-progress">
+									<SelectItem value="重要">
 										<div className="flex items-center gap-2">
 											<div className="w-2 h-2 rounded-full bg-secondary"></div>
 											重要 - 早急な対応が必要
 										</div>
 									</SelectItem>
-									<SelectItem value="monitoring">
+									<SelectItem value="通常">
 										<div className="flex items-center gap-2">
 											<div className="w-2 h-2 rounded-full bg-chart-2"></div>
 											通常 - 通常の対応で可
