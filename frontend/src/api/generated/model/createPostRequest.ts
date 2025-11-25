@@ -19,11 +19,6 @@ export interface CreatePostRequest {
    */
   content?: string | null;
   /**
-   * 投稿時刻（未指定時はサーバー時刻を使用）
-   * @nullable
-   */
-  postedAt?: string | null;
-  /**
    * 災害等の事象が発生した時刻
    * @nullable
    */
