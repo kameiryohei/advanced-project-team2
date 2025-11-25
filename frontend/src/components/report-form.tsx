@@ -130,10 +130,14 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 			const data = await response.json();
 			console.log("逆ジオコーディング結果:", data);
 
-			if (data.address) {
-				return data.address;
+			// Yahoo APIのレスポンス構造に合わせて住所を取得
+			if (data.Feature && data.Feature.length > 0 && data.Feature[0].Property) {
+				const address = data.Feature[0].Property.Address;
+				console.log("取得した住所:", address);
+				return address;
 			}
 
+			console.log("住所データが見つかりませんでした");
 			return null;
 		} catch (error) {
 			console.error("逆ジオコーディングエラー:", error);
