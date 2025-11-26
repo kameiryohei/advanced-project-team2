@@ -169,151 +169,59 @@ app.get("/shelters/:id/posts", async (c) => {
 	}
 });
 
-// 動画アップロード・取得用のサンプルエンドポイント
-app.post("/r2/test-video/:key", async (c) => {
-	const key = c.req.param("key");
-	const bucket = c.env.ASSET_BUCKET;
-	const contentType =
-		c.req.header("content-type") ?? "application/octet-stream";
-
-	try {
-		const body = await c.req.arrayBuffer();
-		const uploadResult = await videoRepository.uploadVideo({
-			bucket,
-			key,
-			body,
-			contentType,
-		});
-
-		return c.json(uploadResult);
-	} catch (error) {
-		if (error instanceof videoRepository.EmptyVideoBodyError) {
-			return c.json({ error: error.message }, 400);
-		}
-
-		console.error("R2 video put failed", error);
-		const message = error instanceof Error ? error.message : "Unknown error";
-		return c.json({ error: message }, 500);
-	}
-});
-
-// R2からファイルを取得するエンドポイント
-// NODE_ENV=development: ローカルR2から直接取得
-// NODE_ENV=production: 署名付きURLを返す
+// 開発環境用: R2から直接ファイルを返すエンドポイント
 app.get("/r2/video/:key{.+}", async (c) => {
 	const key = c.req.param("key");
-	const isDevelopment = c.env.NODE_ENV === "development";
 
 	if (!key) {
-		return c.json({ error: "key is required" }, 400);
+		const errorResponse: components["schemas"]["ErrorResponse"] = {
+			error: "key is required",
+		};
+		return c.json(errorResponse, 400);
 	}
 
-	// 開発環境: ローカルR2から直接ファイルを返す
-	if (isDevelopment) {
-		const bucket = c.env.ASSET_BUCKET;
-
-		try {
-			const object = await bucket.get(key);
-			if (!object) {
-				return c.json({ error: "Object not found" }, 404);
-			}
-
-			const headers = new Headers();
-			headers.set(
-				"Content-Type",
-				object.httpMetadata?.contentType || "application/octet-stream",
-			);
-			headers.set("Content-Length", String(object.size));
-
-			return new Response(object.body, { headers });
-		} catch (error) {
-			console.error("R2 local get failed", error);
-			const message = error instanceof Error ? error.message : "Unknown error";
-			return c.json({ error: message }, 500);
-		}
-	}
-
-	const bucketName = c.env.R2_BUCKET_NAME;
-	const accountId = c.env.CLOUDFLARE_R2_ACCOUNT_ID;
-	const accessKeyId = c.env.R2_ACCESS_KEY_ID;
-	const secretAccessKey = c.env.R2_SECRET_ACCESS_KEY;
-
-	console.info("R2 signed fetch environment", {
-		bucketName,
-		accountId,
-		hasAccessKey: Boolean(accessKeyId),
-		hasSecretAccessKey: Boolean(secretAccessKey),
-	});
+	const bucket = c.env.ASSET_BUCKET;
 
 	try {
-		const signedUrl = await signedVideoRepository.fetchSignedVideo({
-			bucketName,
-			accountId,
-			objectKey: key,
-			accessKeyId,
-			secretAccessKey,
-		});
-
-		return c.json({ url: signedUrl });
-	} catch (error) {
-		if (error instanceof signedVideoRepository.SignedVideoFetchError) {
-			return c.json({ error: error.message }, 500);
+		const object = await bucket.get(key);
+		if (!object) {
+			const errorResponse: components["schemas"]["ErrorResponse"] = {
+				error: "Object not found",
+			};
+			return c.json(errorResponse, 404);
 		}
 
-		console.error("R2 signed video get failed", error);
-		const message = error instanceof Error ? error.message : "Unknown error";
-		return c.json({ error: message }, 500);
-	}
-});
+		const headers = new Headers();
+		headers.set(
+			"Content-Type",
+			object.httpMetadata?.contentType || "application/octet-stream",
+		);
+		headers.set("Content-Length", String(object.size));
 
-// 後方互換性のため古いエンドポイントも残す（本番用署名付きURL）
-app.get("/r2/test-video/:key{.+}", async (c) => {
-	const key = c.req.param("key");
-
-	if (!key) {
-		return c.json({ error: "key is required" }, 400);
-	}
-
-	const bucketName = c.env.R2_BUCKET_NAME;
-	const accountId = c.env.CLOUDFLARE_R2_ACCOUNT_ID;
-	const accessKeyId = c.env.R2_ACCESS_KEY_ID;
-	const secretAccessKey = c.env.R2_SECRET_ACCESS_KEY;
-
-	try {
-		const signedUrl = await signedVideoRepository.fetchSignedVideo({
-			bucketName,
-			accountId,
-			objectKey: key,
-			accessKeyId,
-			secretAccessKey,
-		});
-
-		return c.json({ url: signedUrl });
+		return new Response(object.body, { headers });
 	} catch (error) {
-		if (error instanceof signedVideoRepository.SignedVideoFetchError) {
-			return c.json({ error: error.message }, 500);
-		}
-
-		console.error("R2 signed video get failed", error);
+		console.error("R2 get failed", error);
 		const message = error instanceof Error ? error.message : "Unknown error";
-		return c.json({ error: message }, 500);
+		const errorResponse: components["schemas"]["ErrorResponse"] = {
+			error: message,
+		};
+		return c.json(errorResponse, 500);
 	}
 });
-
-// ファイルサイズ上限（30MB）
-const MAX_FILE_SIZE = 30 * 1024 * 1024;
-
-// 許可するMIMEタイプ
-const ALLOWED_MIME_TYPES = [
-	"image/jpeg",
-	"image/png",
-	"image/gif",
-	"video/mp4",
-];
 
 app.post("/posts", async (c) => {
 	const db = dbConnect(c.env);
 	const bucket = c.env.ASSET_BUCKET;
+
+	// ファイルサイズ上限（30MB）
+	const MAX_FILE_SIZE = 30 * 1024 * 1024;
+	// 許可するMIMEタイプ
+	const ALLOWED_MIME_TYPES = [
+		"image/jpeg",
+		"image/png",
+		"image/gif",
+		"video/mp4",
+	];
 
 	try {
 		// multipart/form-data をパース
@@ -521,23 +429,37 @@ app.post("/posts", async (c) => {
 			throw err;
 		}
 
-		// メディアURLを生成
+		// メディアURLを生成（本番は署名付きURL、開発はローカルURL）
 		const isDevelopment = c.env.NODE_ENV === "development";
-		const mediaResponse: components["schemas"]["MediaItem"][] = mediaItems.map(
-			(mi) => ({
+		const mediaResponse: components["schemas"]["MediaItem"][] = [];
+
+		for (const mi of mediaItems) {
+			let url: string;
+			if (isDevelopment) {
+				url = `http://localhost:8787/r2/video/${mi.file_path}`;
+			} else {
+				// 本番環境: 署名付きURLを生成
+				url = await signedVideoRepository.fetchSignedVideo({
+					bucketName: c.env.R2_BUCKET_NAME,
+					accountId: c.env.CLOUDFLARE_R2_ACCOUNT_ID,
+					objectKey: mi.file_path,
+					accessKeyId: c.env.R2_ACCESS_KEY_ID,
+					secretAccessKey: c.env.R2_SECRET_ACCESS_KEY,
+				});
+			}
+			mediaResponse.push({
 				mediaId: mi.id,
 				mediaType: mi.mediaType,
 				fileName: mi.fileName ?? null,
-				url: isDevelopment
-					? `/r2/video/${mi.file_path}`
-					: `/r2/video/${mi.file_path}`,
-			}),
-		);
+				url,
+			});
+		}
 
-		const response: components["schemas"]["CreatePostResponse"] = {
-			postId,
-			media: mediaResponse,
-		};
+		const response: paths["/posts"]["post"]["responses"]["201"]["content"]["application/json"] =
+			{
+				postId,
+				media: mediaResponse,
+			};
 
 		return c.json(response, 201);
 	} catch (error) {
@@ -576,33 +498,47 @@ app.get("/posts/:id", async (c) => {
 
 		const { post, media, locationTrack } = result;
 
-		// メディアURLを生成
-		const mediaItems: components["schemas"]["MediaItem"][] = media.map(
-			(mi) => ({
+		// メディアURLを生成（本番は署名付きURL、開発はローカルURL）
+		const mediaItems: components["schemas"]["MediaItem"][] = [];
+
+		for (const mi of media) {
+			let url: string;
+			if (isDevelopment) {
+				url = `http://localhost:8787/r2/video/${mi.filePath}`;
+			} else {
+				// 本番環境: 署名付きURLを生成
+				url = await signedVideoRepository.fetchSignedVideo({
+					bucketName: c.env.R2_BUCKET_NAME,
+					accountId: c.env.CLOUDFLARE_R2_ACCOUNT_ID,
+					objectKey: mi.filePath,
+					accessKeyId: c.env.R2_ACCESS_KEY_ID,
+					secretAccessKey: c.env.R2_SECRET_ACCESS_KEY,
+				});
+			}
+			mediaItems.push({
 				mediaId: mi.id,
 				mediaType: mi.mediaType,
 				fileName: mi.fileName ?? null,
-				url: isDevelopment
-					? `/r2/video/${mi.filePath}`
-					: `/r2/video/${mi.filePath}`,
-			}),
-		);
+				url,
+			});
+		}
 
-		const response: components["schemas"]["PostDetailResponse"] = {
-			id: post.id,
-			shelterId: post.shelterId,
-			shelterName: post.shelterName,
-			authorName: post.authorName,
-			content: post.content,
-			postedAt: post.postedAt,
-			media: mediaItems,
-			locationTrack: locationTrack.map((lt) => ({
-				recordedAt: lt.recordedAt,
-				latitude: lt.latitude,
-				longitude: lt.longitude,
-			})),
-			commentCount: post.commentCount,
-		};
+		const response: paths["/posts/{id}"]["get"]["responses"]["200"]["content"]["application/json"] =
+			{
+				id: post.id,
+				shelterId: post.shelterId,
+				shelterName: post.shelterName,
+				authorName: post.authorName,
+				content: post.content,
+				postedAt: post.postedAt,
+				media: mediaItems,
+				locationTrack: locationTrack.map((lt) => ({
+					recordedAt: lt.recordedAt,
+					latitude: lt.latitude,
+					longitude: lt.longitude,
+				})),
+				commentCount: post.commentCount,
+			};
 
 		return c.json(response);
 	} catch (error) {
@@ -701,15 +637,16 @@ app.post("/posts/:id/comments", async (c) => {
 				content: reqBody.content,
 			});
 
-			const response: components["schemas"]["CreateCommentResponse"] = {
-				comment: {
-					id: result.id,
-					postId: result.postId,
-					authorName: result.authorName,
-					content: result.content,
-					createdAt: result.createdAt,
-				},
-			};
+			const response: paths["/posts/{id}/comments"]["post"]["responses"]["201"]["content"]["application/json"] =
+				{
+					comment: {
+						id: result.id,
+						postId: result.postId,
+						authorName: result.authorName,
+						content: result.content,
+						createdAt: result.createdAt,
+					},
+				};
 
 			return c.json(response, 201);
 		} catch (err) {
