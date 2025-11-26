@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import type { CreatePostRequest } from "@/api/generated/model";
+import type { PostPostsBody, CreatePostRequest } from "@/api/generated/model";
 import { usePostPosts } from "@/api/generated/team2API";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,11 +48,12 @@ interface ReportData {
 }
 
 interface ReportFormProps {
+	shelterId: number;
 	onClose: () => void;
 	onSubmit: (report: ReportData) => void;
 }
 
-export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
+export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 	// APIクライアントの初期化
 	const createPostMutation = usePostPosts();
 	// 日本時間（JST）でdatetime-localフィールドを初期化する関数
@@ -249,9 +250,9 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 		setIsSubmitting(true);
 
 		try {
-			// APIリクエスト用のデータを作成
-			const postData: CreatePostRequest = {
-				shelterId: 1, // デフォルトの避難所ID（後で動的に設定可能）
+			// APIリクエスト用のメタデータを作成
+			const metadata: CreatePostRequest = {
+				shelterId: shelterId,
 				authorName: formData.reporter,
 				content: `${formData.details}\n\n発生場所: ${formData.address}`,
 				occurredAt: new Date(formData.datetime).toISOString(),
@@ -268,13 +269,17 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 				media: formData.attachment
 					? [
 							{
-								mediaType: formData.attachment.type.startsWith("video")
-									? "video"
-									: "image",
+								mediaType: formData.attachment.type,
 								fileName: formData.attachment.name,
 							},
 						]
 					: [],
+			};
+
+			// PostPostsBody型でリクエストを構築
+			const postData: PostPostsBody = {
+				metadata: metadata,
+				mediaFiles: formData.attachment ? [formData.attachment] : undefined,
 			};
 
 			// APIを呼び出して投稿を作成
@@ -514,8 +519,8 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 	}, [stream, videoPreview]);
 
 	return (
-		<div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[10000]">
-			<Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto relative z-[10001]">
+		<div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-10000">
+			<Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto relative z-10001">
 				<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
 					<div className="flex items-center gap-2">
 						<AlertTriangle className="h-5 w-5 text-primary" />
@@ -660,7 +665,7 @@ export function ReportForm({ onClose, onSubmit }: ReportFormProps) {
 								<SelectTrigger id={priorityId}>
 									<SelectValue placeholder="緊急度を選択" />
 								</SelectTrigger>
-								<SelectContent className="z-[10002]">
+								<SelectContent className="z-10002">
 									<SelectItem value="緊急">
 										<div className="flex items-center gap-2">
 											<div className="w-2 h-2 rounded-full bg-destructive"></div>

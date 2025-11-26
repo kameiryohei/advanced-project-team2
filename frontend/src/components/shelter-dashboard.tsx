@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
+	useGetPostsId,
 	useGetShelters,
 	useGetSheltersId,
 	useGetSheltersIdPosts,
@@ -145,6 +146,14 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 	const { data: sheltersData } = useGetShelters();
 	const { data: shelterDetails } = useGetSheltersId(currentShelterId);
 	const { data: shelterPosts } = useGetSheltersIdPosts(currentShelterId);
+
+	// 選択された投稿の詳細を取得
+	const { data: selectedPostDetail, isLoading: isLoadingPostDetail } =
+		useGetPostsId(selectedReport || "", {
+			query: {
+				enabled: !!selectedReport, // selectedReportがある場合のみ実行
+			},
+		});
 
 	// APIデータのログ出力と状態更新
 	useEffect(() => {
@@ -394,6 +403,8 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 							onBack={() => setSelectedReport(null)}
 							onAddMessage={handleAddMessage}
 							onUpdateReportStatus={handleUpdateReportStatus}
+							postDetail={selectedPostDetail}
+							isLoadingPostDetail={isLoadingPostDetail}
 						/>
 					) : (
 						<Card>
@@ -569,6 +580,7 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 			{/* Report Form Modal */}
 			{showReportForm && (
 				<ReportForm
+					shelterId={currentShelterId}
 					onClose={() => setShowReportForm(false)}
 					onSubmit={handleNewReport}
 				/>

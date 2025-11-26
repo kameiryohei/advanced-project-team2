@@ -11,7 +11,10 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useId, useState } from "react";
-import type { CreateCommentRequest } from "@/api/generated/model";
+import type {
+	CreateCommentRequest,
+	PostDetailResponse,
+} from "@/api/generated/model";
 import {
 	useGetPostsIdComments,
 	usePostPostsIdComments,
@@ -58,6 +61,8 @@ interface ConversationThreadProps {
 	onBack: () => void;
 	onAddMessage: (reportId: string, message: Omit<Message, "id">) => void;
 	onUpdateReportStatus: (reportId: string, status: Report["status"]) => void;
+	postDetail?: PostDetailResponse;
+	isLoadingPostDetail?: boolean;
 }
 
 // 地図コンポーネント
@@ -117,6 +122,8 @@ export function ConversationThread({
 	onBack,
 	onAddMessage,
 	onUpdateReportStatus,
+	postDetail,
+	isLoadingPostDetail,
 }: ConversationThreadProps) {
 	const [newMessage, setNewMessage] = useState("");
 	const [newStatus, setNewStatus] = useState("");
@@ -265,35 +272,108 @@ export function ConversationThread({
 							)}
 						</div>
 
-						{/* 添付動画の表示 */}
-						{report.attachment?.includes("video") && (
+						{/* APIから取得したメディアの表示 */}
+						{isLoadingPostDetail && (
 							<div>
 								<h4 className="font-medium text-sm text-muted-foreground mb-2">
-									添付動画
+									添付メディア
 								</h4>
-								<div className="border rounded-lg overflow-hidden bg-muted/50">
-									<video
-										controls
-										className="w-full max-h-80 object-cover"
-										aria-label="報告に添付された動画"
-									>
-										<source
-											src={`/api/attachments/${report.id}`}
-											type="video/webm"
-										/>
-										<source
-											src={`/api/attachments/${report.id}`}
-											type="video/mp4"
-										/>
-										<track kind="captions" src="" srcLang="ja" label="日本語" />
-										お使いのブラウザは動画再生に対応していません。
-									</video>
-									<div className="p-3 bg-background border-t text-sm text-muted-foreground">
-										📹 {report.attachment}
-									</div>
+								<div className="border rounded-lg p-8 bg-muted/50 text-center">
+									<p className="text-muted-foreground animate-pulse">
+										メディアを読み込み中...
+									</p>
 								</div>
 							</div>
 						)}
+
+						{postDetail?.media && postDetail.media.length > 0 && (
+							<div>
+								<h4 className="font-medium text-sm text-muted-foreground mb-2">
+									添付メディア ({postDetail.media.length}件)
+								</h4>
+								<div className="space-y-4">
+									{postDetail.media.map((media) => (
+										<div
+											key={media.mediaId}
+											className="border rounded-lg overflow-hidden bg-muted/50"
+										>
+											{media.mediaType.startsWith("video/") ? (
+												<>
+													<video
+														controls
+														className="w-full max-h-[680px] object-cover"
+														aria-label="報告に添付された動画"
+													>
+														<source src={media.url} type={media.mediaType} />
+														<track
+															kind="captions"
+															src=""
+															srcLang="ja"
+															label="日本語"
+														/>
+														お使いのブラウザは動画再生に対応していません。
+													</video>
+													<div className="p-3 bg-background border-t text-sm text-muted-foreground">
+														📹 {media.fileName || "動画ファイル"}
+													</div>
+												</>
+											) : media.mediaType.startsWith("image/") ? (
+												<>
+													<img
+														src={media.url}
+														alt={media.fileName || "添付画像"}
+														className="w-full max-h-[480px] object-contain"
+													/>
+													<div className="p-3 bg-background border-t text-sm text-muted-foreground">
+														🖼️ {media.fileName || "画像ファイル"}
+													</div>
+												</>
+											) : (
+												<div className="p-3 text-sm text-muted-foreground">
+													📄 {media.fileName || "ファイル"} ({media.mediaType})
+												</div>
+											)}
+										</div>
+									))}
+								</div>
+							</div>
+						)}
+
+						{/* 既存の添付動画の表示（フォールバック用） */}
+						{!postDetail?.media?.length &&
+							report.attachment?.includes("video") && (
+								<div>
+									<h4 className="font-medium text-sm text-muted-foreground mb-2">
+										添付動画
+									</h4>
+									<div className="border rounded-lg overflow-hidden bg-muted/50">
+										<video
+											controls
+											className="w-full max-h-80 object-cover"
+											aria-label="報告に添付された動画"
+										>
+											<source
+												src={`/api/attachments/${report.id}`}
+												type="video/webm"
+											/>
+											<source
+												src={`/api/attachments/${report.id}`}
+												type="video/mp4"
+											/>
+											<track
+												kind="captions"
+												src=""
+												srcLang="ja"
+												label="日本語"
+											/>
+											お使いのブラウザは動画再生に対応していません。
+										</video>
+										<div className="p-3 bg-background border-t text-sm text-muted-foreground">
+											📹 {report.attachment}
+										</div>
+									</div>
+								</div>
+							)}
 					</div>
 				</CardContent>
 			</Card>

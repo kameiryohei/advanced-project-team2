@@ -26,12 +26,13 @@ import type {
 import type {
   CreateCommentRequest,
   CreateCommentResponse,
-  CreatePostRequest,
+  CreatePostResponse,
   ErrorResponse,
   GetApiGeocodeReverseParams,
   GetPostsIdCommentsParams,
-  OkResponse,
   PostCommentsResponse,
+  PostDetailResponse,
+  PostPostsBody,
   ReverseGeocoderResponse,
   ShelterDetails,
   ShelterListWithCountResponse,
@@ -141,28 +142,33 @@ export function useGetApiGeocodeReverse<TData = Awaited<ReturnType<typeof getApi
 
 
 /**
- * 避難所の状況を投稿し、必要に応じて災害発生時刻・位置情報の時系列データ・メディアファイル情報を添付します。
- * @summary 投稿を新規作成
+ * 本文・時刻・位置トラックなどのメタデータと、画像/動画ファイルを同梱して投稿します。
+ * @summary 投稿を新規作成（メディア同梱）
  */
 export const postPosts = (
-    createPostRequest: CreatePostRequest,
+    postPostsBody: PostPostsBody,
  options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
 ) => {
       
-      
-      return axiosInstance<OkResponse>(
+      const formData = new FormData();
+formData.append(`metadata`, JSON.stringify(postPostsBody.metadata));
+if(postPostsBody.mediaFiles !== undefined) {
+ postPostsBody.mediaFiles.forEach(value => formData.append(`mediaFiles`, value));
+ }
+
+      return axiosInstance<CreatePostResponse>(
       {url: `/posts`, method: 'POST',
-      headers: {'Content-Type': 'application/json', },
-      data: createPostRequest, signal
+      headers: {'Content-Type': 'multipart/form-data', },
+       data: formData, signal
     },
       options);
     }
   
 
 
-export const getPostPostsMutationOptions = <TError = ErrorType<ErrorResponse | ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postPosts>>, TError,{data: CreatePostRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
-): UseMutationOptions<Awaited<ReturnType<typeof postPosts>>, TError,{data: CreatePostRequest}, TContext> => {
+export const getPostPostsMutationOptions = <TError = ErrorType<ErrorResponse | ErrorResponse | ErrorResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postPosts>>, TError,{data: PostPostsBody}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof postPosts>>, TError,{data: PostPostsBody}, TContext> => {
 
 const mutationKey = ['postPosts'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -174,7 +180,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postPosts>>, {data: CreatePostRequest}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postPosts>>, {data: PostPostsBody}> = (props) => {
           const {data} = props ?? {};
 
           return  postPosts(data,requestOptions)
@@ -186,18 +192,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type PostPostsMutationResult = NonNullable<Awaited<ReturnType<typeof postPosts>>>
-    export type PostPostsMutationBody = CreatePostRequest
-    export type PostPostsMutationError = ErrorType<ErrorResponse | ErrorResponse>
+    export type PostPostsMutationBody = PostPostsBody
+    export type PostPostsMutationError = ErrorType<ErrorResponse | ErrorResponse | ErrorResponse | ErrorResponse>
 
     /**
- * @summary 投稿を新規作成
+ * @summary 投稿を新規作成（メディア同梱）
  */
-export const usePostPosts = <TError = ErrorType<ErrorResponse | ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postPosts>>, TError,{data: CreatePostRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+export const usePostPosts = <TError = ErrorType<ErrorResponse | ErrorResponse | ErrorResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postPosts>>, TError,{data: PostPostsBody}, TContext>, request?: SecondParameter<typeof axiosInstance>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof postPosts>>,
         TError,
-        {data: CreatePostRequest},
+        {data: PostPostsBody},
         TContext
       > => {
 
@@ -206,6 +212,99 @@ export const usePostPosts = <TError = ErrorType<ErrorResponse | ErrorResponse>,
       return useMutation(mutationOptions, queryClient);
     }
     
+/**
+ * 指定した投稿IDの詳細情報（メディアURL含む）を取得します。
+ * @summary 投稿の詳細を取得
+ */
+export const getPostsId = (
+    id: string,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return axiosInstance<PostDetailResponse>(
+      {url: `/posts/${id}`, method: 'GET', signal
+    },
+      options);
+    }
+  
+
+
+
+export const getGetPostsIdQueryKey = (id?: string,) => {
+    return [
+    `/posts/${id}`
+    ] as const;
+    }
+
+    
+export const getGetPostsIdQueryOptions = <TData = Awaited<ReturnType<typeof getPostsId>>, TError = ErrorType<ErrorResponse | ErrorResponse>>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPostsId>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPostsIdQueryKey(id);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPostsId>>> = ({ signal }) => getPostsId(id, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPostsId>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetPostsIdQueryResult = NonNullable<Awaited<ReturnType<typeof getPostsId>>>
+export type GetPostsIdQueryError = ErrorType<ErrorResponse | ErrorResponse>
+
+
+export function useGetPostsId<TData = Awaited<ReturnType<typeof getPostsId>>, TError = ErrorType<ErrorResponse | ErrorResponse>>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPostsId>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPostsId>>,
+          TError,
+          Awaited<ReturnType<typeof getPostsId>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetPostsId<TData = Awaited<ReturnType<typeof getPostsId>>, TError = ErrorType<ErrorResponse | ErrorResponse>>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPostsId>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPostsId>>,
+          TError,
+          Awaited<ReturnType<typeof getPostsId>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetPostsId<TData = Awaited<ReturnType<typeof getPostsId>>, TError = ErrorType<ErrorResponse | ErrorResponse>>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPostsId>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 投稿の詳細を取得
+ */
+
+export function useGetPostsId<TData = Awaited<ReturnType<typeof getPostsId>>, TError = ErrorType<ErrorResponse | ErrorResponse>>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPostsId>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetPostsIdQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
 /**
  * @summary 避難所一覧を取得
  */
