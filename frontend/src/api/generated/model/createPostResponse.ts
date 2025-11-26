@@ -4,8 +4,14 @@
  * 先進プロジェクト実験 Team2 避難所 API
  * OpenAPI spec version: 1.0.0
  */
-import type { CreatePostResponsePost } from './createPostResponsePost';
+import type { MediaItem } from './mediaItem';
 
+/**
+ * 投稿作成後のレスポンス
+ */
 export interface CreatePostResponse {
-  post: CreatePostResponsePost;
+  /** 作成された投稿のID */
+  postId: string;
+  /** アップロードされたメディア情報 */
+  media: MediaItem[];
 }
