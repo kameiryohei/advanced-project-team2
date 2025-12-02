@@ -8,4 +8,10 @@
 export interface ShelterSummary {
   id: number;
   name: string;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
 }
