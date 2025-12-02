@@ -601,6 +601,17 @@ components:
           type: integer
         name:
           type: string
+        address:
+          type: string
+          nullable: true
+        latitude:
+          type: number
+          format: float
+          nullable: true
+        longitude:
+          type: number
+          format: float
+          nullable: true
       required:
         - id
         - name
