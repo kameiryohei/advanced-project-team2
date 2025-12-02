@@ -1,7 +1,14 @@
 import Axios, { type AxiosError, type AxiosRequestConfig } from "axios";
 
+// デバッグ: 環境変数の値を確認
+console.log("[DEBUG] VITE_API_BASE_URL:", import.meta.env.VITE_API_BASE_URL);
+console.log("[DEBUG] import.meta.env:", import.meta.env);
+
+const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787";
+console.log("[DEBUG] Using baseURL:", baseURL);
+
 export const AXIOS_INSTANCE = Axios.create({
-	baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8787",
+	baseURL,
 	headers: {
 		"Content-Type": "application/json",
 	},
