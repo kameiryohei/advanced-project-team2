@@ -51,75 +51,6 @@ interface ShelterDashboardProps {
 	shelterId?: string;
 }
 
-const mockReports: Report[] = [
-	{
-		id: "1",
-		datetime: "2025/11/18 15:21",
-		address: "愛知県塩釜口501番地",
-		details: "家が崩れてます",
-		status: "in-progress",
-		reporter: "山田",
-		attachment: "画像ファイル",
-		responder: "未対応",
-		latitude: 35.1355712,
-		longitude: 136.9748375,
-	},
-	{
-		id: "2",
-		datetime: "2025/11/18 16:45",
-		address: "愛知県名古屋市中区",
-		details: "道路に倒木があり通行不可",
-		status: "unassigned",
-		reporter: "佐藤",
-		responder: "未対応",
-		latitude: 35.1629441,
-		longitude: 136.910207,
-	},
-];
-
-const mockMessages: { [key: string]: Message[] } = {
-	"1": [
-		{
-			id: "1",
-			time: "2025/11/18 15:30",
-			responder: "警察",
-			message: "道はなにで塞がれてますか？",
-			status: "対応中",
-			isResponder: true,
-		},
-		{
-			id: "2",
-			time: "2025/11/18 16:00",
-			responder: "山田",
-			message: "大きな石で塞がれてます",
-			status: "対応中",
-			isResponder: false,
-		},
-		{
-			id: "3",
-			time: "2025/11/18 16:30",
-			responder: "警察",
-			message: "1日後に対応予定",
-			status: "対応中",
-			isResponder: true,
-		},
-		{
-			id: "4",
-			time: "2025/11/18 17:00",
-			responder: "警察",
-			message: "応急処置してます。後日全ての石を撤去予定",
-			status: "解決済み",
-			isResponder: true,
-		},
-	],
-};
-
-const shelterData = {
-	"1": { name: "避難所1", population: 5, location: "愛知県塩釜口" },
-	"2": { name: "避難所2", population: 10, location: "愛知県名古屋市中区" },
-	"3": { name: "避難所3", population: 10, location: "愛知県豊田市" },
-};
-
 const getStatusColor = (status: string) => {
 	switch (status) {
 		case "unassigned":
@@ -136,10 +67,8 @@ const getStatusColor = (status: string) => {
 export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 	const [selectedReport, setSelectedReport] = useState<string | null>(null);
 	const [showReportForm, setShowReportForm] = useState(false);
-	const [reports, setReports] = useState<Report[]>(mockReports);
-	const [messages, setMessages] = useState<{ [key: string]: Message[] }>(
-		mockMessages,
-	);
+	const [reports, setReports] = useState<Report[]>([]);
+	const [messages, setMessages] = useState<{ [key: string]: Message[] }>({});
 
 	// APIクライアントの初期化
 	const currentShelterId = Number.parseInt(shelterId || "1", 10);
@@ -191,25 +120,19 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 					responder: "未対応",
 				}),
 			);
-			setReports([...mockReports, ...convertedReports]);
+			setReports(convertedReports);
 		}
 	}, [sheltersData, shelterDetails, shelterPosts, currentShelterId]);
 
 	useEffect(() => {
-		const storedReports = syncService.loadFromLocal(`reports_${shelterId}`);
+		// ローカルストレージからメッセージのみ読み込み（reportsはAPIから取得するため除外）
 		const storedMessages = syncService.loadFromLocal(`messages_${shelterId}`);
 
-		if (storedReports) {
-			setReports(storedReports);
-		}
 		if (storedMessages) {
 			setMessages(storedMessages);
 		}
 
 		syncService.onSyncComplete((syncData) => {
-			if (syncData.reports) {
-				setReports(syncData.reports);
-			}
 			if (syncData.messages) {
 				setMessages(syncData.messages);
 			}
@@ -217,9 +140,8 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 	}, [shelterId]);
 
 	useEffect(() => {
-		syncService.saveToLocal(`reports_${shelterId}`, reports);
 		syncService.saveToLocal(`messages_${shelterId}`, messages);
-	}, [reports, messages, shelterId]);
+	}, [messages, shelterId]);
 
 	const handleNewReport = (newReport: Report) => {
 		setReports((prev) => [newReport, ...prev]);
@@ -279,11 +201,10 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 	};
 
 	const selectedReportData = reports.find((r) => r.id === selectedReport);
-	const currentShelter = shelterId
-		? shelterData[shelterId as keyof typeof shelterData]
-		: null;
-	const shelterName = currentShelter?.name || "避難所管理システム";
-	const shelterPopulation = currentShelter?.population || 127;
+	const shelterName = shelterDetails?.name || "避難所管理システム";
+	const shelterAddress = shelterDetails?.address || "住所未登録";
+	const shelterLatitude = shelterDetails?.latitude;
+	const shelterLongitude = shelterDetails?.longitude;
 
 	return (
 		<div className="container mx-auto p-4 space-y-6">
@@ -295,24 +216,15 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 						<h1 className="text-3xl font-bold text-foreground">
 							{shelterName}
 						</h1>
-						<p className="text-muted-foreground">
-							{currentShelter
-								? `${currentShelter.location} - 災害時情報共有・報告システム`
-								: "災害時情報共有・報告システム"}
+						<p className="text-muted-foreground flex items-center gap-2">
+							<MapPin className="h-4 w-4" />
+							{shelterAddress}
 						</p>
-						{/* API データのデバッグ情報 */}
-						<div className="text-xs text-green-600 mt-1">
-							API接続状況:
-							{sheltersData
-								? ` 避難所一覧(${sheltersData.shelterCount}件)`
-								: " 避難所一覧(未取得)"}
-							{shelterDetails
-								? ` | 詳細(${shelterDetails.name})`
-								: " | 詳細(未取得)"}
-							{shelterPosts
-								? ` | 投稿(${shelterPosts.posts.length}件)`
-								: " | 投稿(未取得)"}
-						</div>
+						{shelterLatitude && shelterLongitude && (
+							<p className="text-xs text-muted-foreground mt-1">
+								座標: {shelterLatitude}, {shelterLongitude}
+							</p>
+						)}
 					</div>
 				</div>
 				<SyncStatus />
@@ -327,11 +239,10 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 					</CardHeader>
 					<CardContent>
 						<div className="text-2xl font-bold">
-							{sheltersData ? sheltersData.shelterCount : shelterPopulation}
-							{sheltersData ? "箇所" : "人"}
+							{sheltersData ? `${sheltersData.shelterCount}箇所` : "-"}
 						</div>
 						<p className="text-xs text-muted-foreground">
-							{sheltersData ? "API取得済み" : "前回更新: 30分前"}
+							{sheltersData ? "API取得済み" : "データ取得中..."}
 						</p>
 					</CardContent>
 				</Card>
@@ -425,29 +336,40 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 											</tr>
 										</thead>
 										<tbody>
-											{reports.map((report) => (
-												<tr
-													key={report.id}
-													className="border-b hover:bg-muted/50 cursor-pointer"
-													onClick={() => setSelectedReport(report.id)}
-												>
-													<td className="p-4">{report.datetime}</td>
-													<td className="p-4">{report.address}</td>
-													<td className="p-4">{report.details}</td>
-													<td className="p-4">
-														<Badge className={getStatusColor(report.status)}>
-															{report.status === "unassigned"
-																? "未対応"
-																: report.status === "in-progress"
-																	? "対応中"
-																	: "解決済み"}
-														</Badge>
+											{reports.length === 0 ? (
+												<tr>
+													<td
+														colSpan={7}
+														className="p-8 text-center text-muted-foreground"
+													>
+														報告データがありません
 													</td>
-													<td className="p-4">{report.reporter}</td>
-													<td className="p-4">{report.attachment || "-"}</td>
-													<td className="p-4">{report.responder}</td>
 												</tr>
-											))}
+											) : (
+												reports.map((report) => (
+													<tr
+														key={report.id}
+														className="border-b hover:bg-muted/50 cursor-pointer"
+														onClick={() => setSelectedReport(report.id)}
+													>
+														<td className="p-4">{report.datetime}</td>
+														<td className="p-4">{report.address}</td>
+														<td className="p-4">{report.details}</td>
+														<td className="p-4">
+															<Badge className={getStatusColor(report.status)}>
+																{report.status === "unassigned"
+																	? "未対応"
+																	: report.status === "in-progress"
+																		? "対応中"
+																		: "解決済み"}
+															</Badge>
+														</td>
+														<td className="p-4">{report.reporter}</td>
+														<td className="p-4">{report.attachment || "-"}</td>
+														<td className="p-4">{report.responder}</td>
+													</tr>
+												))
+											)}
 										</tbody>
 									</table>
 								</div>
