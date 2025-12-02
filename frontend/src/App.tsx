@@ -1,5 +1,3 @@
-"use client";
-
 import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { ShelterDashboard } from "@/components/shelter-dashboard";

@@ -35,14 +35,11 @@ app.get("/api/geocode/reverse", async (c) => {
 	const lat = c.req.query("lat");
 	const lon = c.req.query("lon");
 
-	console.log("逆ジオコーディングリクエスト:", { lat, lon });
-
 	if (!lat || !lon) {
 		return c.json({ error: "緯度と経度が必要です" }, 400);
 	}
 
 	const apiKey = c.env.YAHOO_MAPS_API_KEY;
-	console.log("APIキー確認:", { hasApiKey: !!apiKey });
 
 	if (!apiKey) {
 		return c.json({ error: "APIキーが設定されていません" }, 500);
@@ -54,8 +51,6 @@ app.get("/api/geocode/reverse", async (c) => {
 			lon,
 			apiKey,
 		);
-
-		console.log("Yahoo APIレスポンス:", JSON.stringify(data, null, 2));
 
 		if (data.Feature.length === 0) {
 			const errorResponse: components["schemas"]["ErrorResponse"] = {
