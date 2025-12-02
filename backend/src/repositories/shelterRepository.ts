@@ -16,6 +16,9 @@ type ShelterCountRow = {
 interface Shelter {
 	id: number;
 	name: string;
+	address: string | null;
+	latitude: number | null;
+	longitude: number | null;
 }
 
 export type ShelterPostSummary = {
@@ -103,7 +106,7 @@ export const fetchShelterDetails = async (
 
 export const getShelterList = async (db: Database): Promise<Shelter[]> => {
 	const { results } = await db
-		.prepare("SELECT id, name FROM shelters;")
+		.prepare("SELECT id, name, address, latitude, longitude FROM shelters;")
 		.all<Shelter>();
 	return results ?? [];
 };

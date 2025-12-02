@@ -7,13 +7,12 @@ import {
 	Wifi,
 	WifiOff,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useGetShelters } from "@/api/generated/team2API";
 import { ShelterMap } from "@/components/shelter-map";
 import { SyncStatus } from "@/components/sync-status";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { syncService } from "@/lib/sync-service";
 
 interface Shelter {
 	id: string;
@@ -29,71 +28,29 @@ interface Shelter {
 	longitude: number;
 }
 
-const mockShelters: Shelter[] = [
-	{
-		id: "1",
-		name: "避難所1(天白)",
-		distance: "10km",
-		status: "online",
-		population: 5,
-		activeReports: 3,
-		urgentReports: 1,
-		lastUpdate: "2025/9/9 15:30",
-		address: "名古屋市塩釜口501",
-		latitude: 35.1355712,
-		longitude: 136.9748375,
-	},
-	{
-		id: "2",
-		name: "避難所2(八事)",
-		distance: "15km",
-		status: "offline",
-		population: 10,
-		activeReports: 7,
-		urgentReports: 3,
-		lastUpdate: "2025/9/9 14:45",
-		address: "名古屋市昭和区八事本町100-36",
-		latitude: 35.1370121,
-		longitude: 136.965344,
-	},
-	{
-		id: "3",
-		name: "避難所3(ドーム)",
-		distance: "20km",
-		status: "offline",
-		population: 10,
-		activeReports: 2,
-		urgentReports: 0,
-		lastUpdate: "2025/9/9 13:20",
-		address: "名古屋市東区大幸南1-1-1",
-		latitude: 35.189008,
-		longitude: 136.9387193,
-	},
-];
-
 interface ShelterOverviewProps {
 	onShelterSelect: (shelterId: string) => void;
 }
 
 export function ShelterOverview({ onShelterSelect }: ShelterOverviewProps) {
-	const [shelters, setShelters] = useState<Shelter[]>(mockShelters);
+	// APIから避難所一覧を取得
+	const { data: sheltersData, isLoading, error } = useGetShelters();
 
-	useEffect(() => {
-		const storedShelters = syncService.loadFromLocal("shelters");
-		if (storedShelters) {
-			setShelters(storedShelters);
-		}
-
-		syncService.onSyncComplete((syncData) => {
-			if (syncData.shelterStatus) {
-				setShelters(syncData.shelterStatus);
-			}
-		});
-	}, []);
-
-	useEffect(() => {
-		syncService.saveToLocal("shelters", shelters);
-	}, [shelters]);
+	// APIデータをローカル型にマッピング
+	const shelters: Shelter[] = (sheltersData?.shelterList ?? []).map((s) => ({
+		id: String(s.id),
+		name: s.name,
+		address: s.address ?? "住所未登録",
+		latitude: s.latitude ?? 35.17, // デフォルト座標（名古屋市）
+		longitude: s.longitude ?? 136.9,
+		// 以下はモックデータ（APIから取得できない情報）
+		distance: "-",
+		status: "online" as const,
+		population: Math.floor(Math.random() * 50) + 10, // モック
+		activeReports: Math.floor(Math.random() * 10), // モック
+		urgentReports: Math.floor(Math.random() * 3), // モック
+		lastUpdate: new Date().toLocaleString("ja-JP"),
+	}));
 
 	const totalShelters = shelters.length;
 	const onlineShelters = shelters.filter((s) => s.status === "online").length;
@@ -102,6 +59,33 @@ export function ShelterOverview({ onShelterSelect }: ShelterOverviewProps) {
 		(sum, s) => sum + s.urgentReports,
 		0,
 	);
+
+	// ローディング状態
+	if (isLoading) {
+		return (
+			<div className="min-h-screen bg-background p-6 flex items-center justify-center">
+				<div className="text-center space-y-4">
+					<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
+					<p className="text-muted-foreground">避難所データを読み込み中...</p>
+				</div>
+			</div>
+		);
+	}
+
+	// エラー状態
+	if (error) {
+		return (
+			<div className="min-h-screen bg-background p-6 flex items-center justify-center">
+				<div className="text-center space-y-4">
+					<AlertTriangle className="h-12 w-12 text-destructive mx-auto" />
+					<p className="text-destructive">避難所データの取得に失敗しました</p>
+					<p className="text-sm text-muted-foreground">
+						ネットワーク接続を確認してください
+					</p>
+				</div>
+			</div>
+		);
+	}
 
 	return (
 		<div className="min-h-screen bg-background p-6">

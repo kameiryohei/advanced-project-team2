@@ -652,6 +652,11 @@ export interface components {
 		ShelterSummary: {
 			id: number;
 			name: string;
+			address?: string | null;
+			/** Format: float */
+			latitude?: number | null;
+			/** Format: float */
+			longitude?: number | null;
 		};
 		ShelterDetails: {
 			id: number;
