@@ -99,71 +99,75 @@ export function ReportMap({ reports, onReportSelect }: ReportMapProps) {
 			: 139.6503;
 
 	return (
-		<>
-			<div className="h-96 w-full rounded-lg overflow-hidden border relative z-10">
-				<MapContainer
-					center={[centerLat, centerLng]}
-					zoom={12}
-					style={{ height: "100%", width: "100%", zIndex: 1 }}
-				>
-					<TileLayer
-						attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-						url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-					/>
-					{reportsWithLocation.map((report) => (
-						<Marker
-							key={report.id}
-							position={[report.latitude as number, report.longitude as number]}
-							icon={getIconByStatus(report.status)}
-							eventHandlers={{
-								click: () => onReportSelect(report.id),
-							}}
-						>
-							<Popup>
-								<div className="p-2">
-									<h3 className="font-bold text-lg">報告 #{report.id}</h3>
-									<p className="text-sm text-gray-600">{report.address}</p>
-									<div className="mt-2 space-y-1">
-										<p className="text-sm">
-											<span className="font-medium">詳細:</span>{" "}
-											{report.details}
-										</p>
-										<p className="text-sm">
-											<span className="font-medium">報告者:</span>{" "}
-											{report.reporter}
-										</p>
-										<p className="text-sm">
-											<span className="font-medium">状態:</span>{" "}
-											<span
-												className={
-													report.status === "resolved"
-														? "text-green-600"
-														: report.status === "in-progress"
-															? "text-orange-600"
-															: "text-red-600"
-												}
-											>
-												{getStatusLabel(report.status)}
-											</span>
-										</p>
-										<p className="text-sm">
-											<span className="font-medium">日時:</span>{" "}
-											{report.datetime}
-										</p>
-									</div>
-									<button
-										type="button"
-										className="mt-2 px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
-										onClick={() => onReportSelect(report.id)}
-									>
-										詳細表示
-									</button>
+		<div className="h-96 w-full rounded-lg overflow-hidden border relative z-10">
+			<MapContainer
+				center={[centerLat, centerLng]}
+				zoom={12}
+				style={{ height: "100%", width: "100%", zIndex: 1 }}
+			>
+				<TileLayer
+					attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+					url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+				/>
+				{reportsWithLocation.map((report) => (
+					<Marker
+						key={report.id}
+						position={[report.latitude as number, report.longitude as number]}
+						icon={getIconByStatus(report.status)}
+						eventHandlers={{
+							click: () => onReportSelect(report.id),
+						}}
+					>
+						<Popup>
+							<div className="p-2">
+								<h3 className="font-bold text-lg">報告 #{report.id}</h3>
+								<p className="text-sm text-gray-600">{report.address}</p>
+								<div className="mt-2 space-y-1">
+									<p className="text-sm">
+										<span className="font-medium">詳細:</span> {report.details}
+									</p>
+									<p className="text-sm">
+										<span className="font-medium">報告者:</span>{" "}
+										{report.reporter}
+									</p>
+									<p className="text-sm">
+										<span className="font-medium">状態:</span>{" "}
+										<span
+											className={
+												report.status === "resolved"
+													? "text-green-600"
+													: report.status === "in-progress"
+														? "text-orange-600"
+														: "text-red-600"
+											}
+										>
+											{getStatusLabel(report.status)}
+										</span>
+									</p>
+									<p className="text-sm">
+										<span className="font-medium">日時:</span> {report.datetime}
+									</p>
 								</div>
-							</Popup>
-						</Marker>
-					))}
-				</MapContainer>
-			</div>
-		</>
+								<button
+									type="button"
+									className="mt-2 px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+									onClick={() => onReportSelect(report.id)}
+								>
+									詳細表示
+								</button>
+							</div>
+						</Popup>
+					</Marker>
+				))}
+			</MapContainer>
+			{/* 座標データがない場合のオーバーレイ */}
+			{reportsWithLocation.length === 0 && (
+				<div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20">
+					<p className="text-white text-lg font-medium">
+						座標データがありません
+					</p>
+				</div>
+			)}
+		</div>
 	);
 }
