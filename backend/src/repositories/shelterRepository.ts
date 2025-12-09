@@ -50,6 +50,7 @@ export type ShelterPosts = {
 	is_synced: number;
 	createdAtByPost: string;
 	is_free_chat: number;
+	status: "緊急" | "重要" | "通常" | null;
 	mediaId: string | null;
 	filePath: string | null;
 	mediaType: string | null;
@@ -63,6 +64,29 @@ export type NewCommentResult = {
 	authorName: string;
 	content: string;
 	createdAt: string;
+	status: "未対応" | "対応中" | "対応済み" | null;
+};
+
+const normalizePostStatus = (
+	status: string | null,
+): "緊急" | "重要" | "通常" | null => {
+	if (status === "緊急" || status === "重要" || status === "通常") {
+		return status;
+	}
+	return null;
+};
+
+const normalizeCommentStatus = (
+	status: string | null,
+): "未対応" | "対応中" | "対応済み" | null => {
+	if (!status) return null;
+	if (status === "未対応" || status === "対応中" || status === "対応済み") {
+		return status;
+	}
+	if (status === "解決済み") {
+		return "対応済み";
+	}
+	return null;
 };
 
 const recentPostsByShelterQuery = `SELECT
@@ -149,8 +173,8 @@ export const insertShelterPost = async (
 	try {
 		await db
 			.prepare(
-				`INSERT INTO posts (id, author_name, shelter_id, content, latitude, longitude, is_synced, posted_at, created_at, is_free_chat)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				`INSERT INTO posts (id, author_name, shelter_id, content, latitude, longitude, is_synced, posted_at, created_at, is_free_chat, status)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			)
 			.bind(
 				post.postId,
@@ -163,6 +187,7 @@ export const insertShelterPost = async (
 				post.postedAt,
 				post.createdAtByPost,
 				post.is_free_chat,
+				post.status,
 			)
 			.run();
 
@@ -247,29 +272,33 @@ export const createCommentForPost = async (
 		postId,
 		authorName,
 		content,
+		status,
 	}: {
 		commentId: string;
 		postId: string;
 		authorName: string;
 		content: string;
+		status?: "未対応" | "対応中" | "対応済み" | null;
 	},
 ): Promise<NewCommentResult> => {
 	const createdAt = new Date().toISOString();
+	const normalizedStatus = normalizeCommentStatus(status ?? null) ?? "未対応";
 
 	const result = await db
 		.prepare(
 			`
-      INSERT INTO comments (id, post_id, author_name, content, created_at)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO comments (id, post_id, author_name, content, status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
       RETURNING
         id,
         post_id AS postId,
         author_name AS authorName,
         content,
+        status,
         created_at AS createdAt
     `,
 		)
-		.bind(commentId, postId, authorName, content, createdAt)
+		.bind(commentId, postId, authorName, content, normalizedStatus, createdAt)
 		.first<NewCommentResult>();
 
 	if (!result) {
@@ -280,6 +309,7 @@ export const createCommentForPost = async (
 		...result,
 		id: String(result.id),
 		postId: String(result.postId),
+		status: normalizeCommentStatus(result.status),
 	};
 };
 
@@ -324,11 +354,17 @@ export const fetchCommentsByPost = async (
 	db: Database,
 	postId: string,
 ): Promise<
-	Array<{ id: string; authorName: string; content: string; createdAt: string }>
+	Array<{
+		id: string;
+		authorName: string;
+		content: string;
+		createdAt: string;
+		status: "未対応" | "対応中" | "対応済み" | null;
+	}>
 > => {
 	const { results } = await db
 		.prepare(
-			`SELECT id, author_name AS authorName, content, created_at AS createdAt
+			`SELECT id, author_name AS authorName, content, created_at AS createdAt, status
 			 FROM comments
 			 WHERE post_id = ? AND deleted_at IS NULL
 			 ORDER BY created_at ASC`,
@@ -339,22 +375,35 @@ export const fetchCommentsByPost = async (
 			authorName: string;
 			content: string;
 			createdAt: string;
+			status: string | null;
 		}>();
 
-	return results ?? [];
+	return (
+		results?.map((row) => ({
+			...row,
+			status: normalizeCommentStatus(row.status),
+		})) ?? []
+	);
 };
 
 export const fetchPostIsFreeChat = async (
 	db: Database,
 	postId: string,
-): Promise<number | null> => {
+): Promise<{
+	isFreeChat: number;
+	status: "緊急" | "重要" | "通常" | null;
+} | null> => {
 	const row = await db
-		.prepare("SELECT is_free_chat FROM posts WHERE id = ?")
+		.prepare("SELECT is_free_chat, status FROM posts WHERE id = ?")
 		.bind(postId)
-		.first<{ is_free_chat: number }>();
+		.first<{ is_free_chat: number; status: string | null }>();
 
 	if (!row) return null;
-	return row.is_free_chat ?? null;
+
+	return {
+		isFreeChat: row.is_free_chat ?? 0,
+		status: normalizePostStatus(row.status),
+	};
 };
 
 /**
