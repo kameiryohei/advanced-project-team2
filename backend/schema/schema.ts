@@ -310,6 +310,16 @@ export interface paths {
 						"application/json": components["schemas"]["ErrorResponse"];
 					};
 				};
+				/**
+				 * @description 現在の状況ステータス
+				 * @enum {string|null}
+				 */
+				status: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content?: never;
+				};
 			};
 		};
 		put?: never;
@@ -701,6 +711,11 @@ export interface components {
 			posted_at: string;
 			shelter_name: string;
 			comment_count: number;
+			/**
+			 * @description 現在の状況ステータス
+			 * @enum {string|null}
+			 */
+			status?: "緊急" | "重要" | "通常" | null;
 		};
 		/** @description Yahoo!地図API 逆ジオコーダのレスポンス（Feature 配列）。 */
 		ReverseGeocoderResponse: {
