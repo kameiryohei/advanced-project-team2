@@ -28,6 +28,7 @@ export type ShelterPostSummary = {
 	posted_at: string;
 	shelter_name: string;
 	comment_count: number;
+	status: "緊急" | "重要" | "通常" | null;
 };
 
 export type ShelterDetails = {
@@ -94,6 +95,7 @@ const recentPostsByShelterQuery = `SELECT
 	p.author_name,
 	p.content,
 	p.posted_at,
+	p.status,
 	s.name AS shelter_name,
 	COUNT(c.id) AS comment_count
 FROM posts AS p
@@ -105,6 +107,7 @@ GROUP BY
 	p.author_name,
 	p.content,
 	p.posted_at,
+	p.status,
 	s.name
 ORDER BY p.posted_at DESC
 LIMIT 5`;
@@ -144,7 +147,12 @@ export const fetchRecentPostsByShelter = async (
 		.bind(shelterId)
 		.all<ShelterPostSummary>();
 
-	return results;
+	return (
+		results?.map((row) => ({
+			...row,
+			status: normalizePostStatus(row.status),
+		})) ?? []
+	);
 };
 
 export class ShelterNotFoundError extends Error {
