@@ -95,7 +95,7 @@ paths:
                     authorName: 事例太郎
                     content: 避難所周囲の状況は落ち着いていますが、引き続き注意が必要です。
                     occurredAt: 2024-06-26T18:30:00Z
-                    status: 緊急
+                    status: 未対応
                     locationTrack:
                       - recordedAt: 2024-06-26T18:20:00Z
                         latitude: 35.6895
@@ -509,6 +509,14 @@ components:
         content:
           type: string
           description: コメント本文
+        status:
+          type: string
+          nullable: true
+          description: コメントに紐づく状況ステータス
+          enum:
+            - 未対応
+            - 対応中
+            - 対応済み
       required:
         - authorName
         - content
@@ -534,6 +542,14 @@ components:
               type: string
               format: date-time
               description: コメントの作成時刻
+            status:
+              type: string
+              nullable: true
+              description: コメントに紐づく状況ステータス
+              enum:
+                - 未対応
+                - 対応中
+                - 対応済み
           required:
             - id
             - postId
@@ -558,6 +574,14 @@ components:
           type: string
           format: date-time
           description: コメントの作成時刻
+        status:
+          type: string
+          nullable: true
+          description: コメントに紐づく状況ステータス
+          enum:
+            - 未対応
+            - 対応中
+            - 対応済み
       required:
         - id
         - authorName
@@ -569,6 +593,14 @@ components:
         postId:
           type: string
           description: 対象の投稿ID
+        status:
+          type: string
+          description: 現在の状況ステータス
+          nullable: true
+          enum:
+            - 緊急
+            - 重要
+            - 通常
         isFreeChat:
           type: boolean
           description: 対象の投稿がフリーチャットの場合は true
