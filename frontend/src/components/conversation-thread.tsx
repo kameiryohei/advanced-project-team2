@@ -304,7 +304,7 @@ export function ConversationThread({
 							<h4 className="font-medium text-sm text-muted-foreground mb-2">
 								報告場所
 							</h4>
-							<ReportLocationMap report={report} />
+							<ReportLocationMap report={report} postDetail={postDetail} />
 						</div>
 
 						<div className="flex gap-6 text-sm">
