@@ -15,7 +15,7 @@ import {
 import type React from "react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { PostPostsBody, CreatePostRequest } from "@/api/generated/model";
-import { usePostPosts } from "@/api/generated/team2API";
+import { getApiGeocodeReverse, usePostPosts } from "@/api/generated/team2API";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -113,27 +113,11 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 					`逆ジオコーディング開始: lat=${latitude}, lon=${longitude}`,
 				);
 
-				const response = await fetch(
-					`http://localhost:8787/api/geocode/reverse?lat=${latitude}&lon=${longitude}`,
-					{
-						method: "GET",
-						headers: {
-							"Content-Type": "application/json",
-						},
-					},
-				);
+				const data = await getApiGeocodeReverse({
+					lat: latitude,
+					lon: longitude,
+				});
 
-				console.log(`逆ジオコーディングレスポンス: ${response.status}`);
-
-				if (!response.ok) {
-					const errorText = await response.text();
-					console.error("APIエラーレスポンス:", errorText);
-					throw new Error(
-						`住所の取得に失敗しました (${response.status}): ${errorText}`,
-					);
-				}
-
-				const data = await response.json();
 				console.log("逆ジオコーディング結果:", data);
 
 				// Yahoo APIのレスポンス構造に合わせて住所を取得
@@ -152,39 +136,6 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 			} catch (error) {
 				console.error("逆ジオコーディングエラー:", error);
 				return null;
-			}
-		},
-		[],
-	);
-
-	// 位置情報のアップロード関数
-	const uploadLocation = useCallback(
-		async (latitude: number, longitude: number) => {
-			try {
-				console.log("位置情報を送信中:", { latitude, longitude });
-
-				const response = await fetch("http://localhost:8787/api/location", {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({
-						latitude,
-						longitude,
-						timestamp: new Date().toISOString(),
-					}),
-				});
-
-				if (!response.ok) {
-					const errorText = await response.text();
-					console.error("位置情報送信エラー詳細:", errorText);
-					throw new Error(`位置情報の送信に失敗しました: ${response.status}`);
-				}
-
-				const result = await response.json();
-				console.log("位置情報が送信されました:", result);
-			} catch (error) {
-				console.error("位置情報送信エラー:", error);
 			}
 		},
 		[],
@@ -222,8 +173,6 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 					);
 				}
 
-				// 位置情報を自動的にアップロード
-				uploadLocation(latitude, longitude);
 			},
 			(error) => {
 				console.error("位置情報取得エラー:", error);
@@ -235,7 +184,7 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 				maximumAge: 0,
 			},
 		);
-	}, [reverseGeocode, uploadLocation]);
+	}, [reverseGeocode]);
 
 	// 位置情報のクリア処理
 	const handleClearLocation = () => {
