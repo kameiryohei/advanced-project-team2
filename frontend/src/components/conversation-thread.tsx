@@ -10,7 +10,7 @@ import {
 	User,
 } from "lucide-react";
 import type React from "react";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import type {
 	CreateCommentRequest,
 	PostDetailResponse,
@@ -81,10 +81,19 @@ function ReportLocationMap({
 		// locationTrackの最初の位置を使用（録画開始位置）
 		latitude = postDetail.locationTrack[0].latitude;
 		longitude = postDetail.locationTrack[0].longitude;
+		console.log("🗺️ 投稿詳細の位置情報 (LocationTrack):", {
+			latitude,
+			longitude,
+			locationTrackCount: postDetail.locationTrack.length,
+			allLocationData: postDetail.locationTrack,
+		});
 	} else if (report.latitude && report.longitude) {
 		// reportオブジェクトに座標がある場合はそれを使用
 		latitude = report.latitude;
 		longitude = report.longitude;
+		console.log("🗺️ 投稿詳細の位置情報 (Report):", { latitude, longitude });
+	} else {
+		console.log("🗺️ 投稿詳細の位置情報 (デフォルト):", { latitude, longitude });
 	}
 
 	const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${longitude - 0.01},${latitude - 0.01},${longitude + 0.01},${latitude + 0.01}&layer=mapnik&marker=${latitude},${longitude}`;
@@ -160,6 +169,32 @@ export function ConversationThread({
 	// Generate unique IDs for form elements
 	const responderInputId = useId();
 	const messageInputId = useId();
+
+	// 投稿詳細の位置情報をコンソールに出力
+	useEffect(() => {
+		if (postDetail) {
+			console.log("📍 投稿詳細が読み込まれました:", {
+				postId: postDetail.id,
+				shelterName: postDetail.shelterName,
+				locationTrack: postDetail.locationTrack,
+				locationTrackLength: postDetail.locationTrack?.length || 0,
+			});
+
+			if (postDetail.locationTrack && postDetail.locationTrack.length > 0) {
+				console.log(
+					"🎯 投稿の全位置履歴:",
+					postDetail.locationTrack.map((point, index) => ({
+						index,
+						latitude: point.latitude,
+						longitude: point.longitude,
+						recordedAt: point.recordedAt,
+					})),
+				);
+			} else {
+				console.log("⚠️ この投稿には位置情報が含まれていません");
+			}
+		}
+	}, [postDetail]);
 
 	const handleSubmitMessage = async (e: React.FormEvent) => {
 		e.preventDefault();
