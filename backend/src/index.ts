@@ -216,6 +216,7 @@ app.post("/posts", async (c) => {
 		"image/png",
 		"image/gif",
 		"video/mp4",
+		"video/webm",
 	];
 
 	try {
