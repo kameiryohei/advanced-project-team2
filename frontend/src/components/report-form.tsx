@@ -96,6 +96,16 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 	const [recordingDuration, setRecordingDuration] = useState(0);
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const recordingIntervalRef = useRef<number | null>(null);
+	const locationTrackingRef = useRef<number | null>(null);
+
+	// 録画中の位置情報トラッキング用
+	const [locationTrack, setLocationTrack] = useState<
+		Array<{
+			recordedAt: string;
+			latitude: number;
+			longitude: number;
+		}>
+	>([]);
 
 	// Generate unique IDs for form elements
 	const datetimeId = useId();
@@ -193,6 +203,54 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 		setFormData((prev) => ({ ...prev, address: "" }));
 	};
 
+	// 位置情報を記録する関数
+	const recordLocationPoint = useCallback(() => {
+		if (navigator.geolocation) {
+			navigator.geolocation.getCurrentPosition(
+				(position) => {
+					const { latitude, longitude } = position.coords;
+					const locationPoint = {
+						recordedAt: new Date().toISOString(),
+						latitude,
+						longitude,
+					};
+
+					setLocationTrack((prev) => [...prev, locationPoint]);
+					console.log("位置情報を記録:", locationPoint);
+				},
+				(error) => {
+					console.error("位置情報記録エラー:", error);
+				},
+				{
+					enableHighAccuracy: true,
+					timeout: 5000,
+					maximumAge: 0,
+				},
+			);
+		}
+	}, []);
+
+	// 位置情報追跡を開始する関数
+	const startLocationTracking = useCallback(() => {
+		setLocationTrack([]);
+		// 最初の位置情報を即座に記録
+		recordLocationPoint();
+		// 5秒間隔で位置情報を記録
+		locationTrackingRef.current = setInterval(() => {
+			recordLocationPoint();
+		}, 5000);
+		console.log("位置情報追跡を開始しました (5秒間隔)");
+	}, [recordLocationPoint]);
+
+	// 位置情報追跡を停止する関数
+	const stopLocationTracking = useCallback(() => {
+		if (locationTrackingRef.current) {
+			clearInterval(locationTrackingRef.current);
+			locationTrackingRef.current = null;
+			console.log("位置情報追跡を停止しました");
+		}
+	}, []);
+
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setIsSubmitting(true);
@@ -205,15 +263,18 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 				content: `${formData.details}\n\n発生場所: ${formData.address}`,
 				occurredAt: new Date(formData.datetime).toISOString(),
 				status: formData.priority,
-				locationTrack: coords
-					? [
-							{
-								recordedAt: new Date().toISOString(),
-								latitude: coords.latitude,
-								longitude: coords.longitude,
-							},
-						]
-					: [],
+				locationTrack:
+					locationTrack.length > 0
+						? locationTrack
+						: coords
+							? [
+									{
+										recordedAt: new Date().toISOString(),
+										latitude: coords.latitude,
+										longitude: coords.longitude,
+									},
+								]
+							: [],
 				media: formData.attachment
 					? [
 							{
@@ -373,10 +434,14 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 			recordingIntervalRef.current = null;
 		}
 
+		// Stop location tracking
+		stopLocationTracking();
+
 		setShowCamera(false);
 		setIsRecording(false);
 		setMediaRecorder(null);
 		setRecordingDuration(0);
+		// locationTrackは送信まで保持するからクリア禁止
 	};
 
 	const resetAttachment = () => {
@@ -435,6 +500,9 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 			recordingIntervalRef.current = setInterval(() => {
 				setRecordingDuration((prev) => prev + 1);
 			}, 1000);
+
+			// 位置情報追跡を開始
+			startLocationTracking();
 		}
 	};
 
@@ -442,6 +510,8 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 		if (mediaRecorder && isRecording) {
 			mediaRecorder.stop();
 			setIsRecording(false);
+			// 位置情報追跡を停止
+			stopLocationTracking();
 		}
 	};
 
@@ -459,6 +529,9 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 			}
 			if (recordingIntervalRef.current) {
 				clearInterval(recordingIntervalRef.current);
+			}
+			if (locationTrackingRef.current) {
+				clearInterval(locationTrackingRef.current);
 			}
 			if (videoPreview) {
 				URL.revokeObjectURL(videoPreview);
@@ -774,12 +847,20 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 										)}
 										{/* 録画インジケーターと時間表示 */}
 										{isRecording && (
-											<div className="absolute top-4 left-4 flex items-center gap-2 bg-red-600 text-white px-3 py-1 rounded-full">
-												<div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-												<span className="text-sm font-medium">
-													REC {formatDuration(recordingDuration)}
-												</span>
-											</div>
+											<>
+												<div className="absolute top-4 left-4 flex items-center gap-2 bg-red-600 text-white px-3 py-1 rounded-full">
+													<div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+													<span className="text-sm font-medium">
+														REC {formatDuration(recordingDuration)}
+													</span>
+												</div>
+												<div className="absolute top-4 right-4 flex items-center gap-2 bg-blue-600 text-white px-3 py-1 rounded-full">
+													<div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+													<span className="text-sm font-medium">
+														GPS継続取得中 ({locationTrack.length}点)
+													</span>
+												</div>
+											</>
 										)}{" "}
 										{/* 動画録画コントロール */}
 										<div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
@@ -818,6 +899,10 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 										{isRecording ? (
 											<div>
 												<p>録画中です ({formatDuration(recordingDuration)})</p>
+												<p>
+													位置情報を5秒間隔で記録しています (
+													{locationTrack.length}点記録済)
+												</p>
 												<p>停止ボタン（■）をタップして録画を終了してください</p>
 											</div>
 										) : (
