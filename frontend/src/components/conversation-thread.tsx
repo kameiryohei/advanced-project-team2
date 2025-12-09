@@ -66,10 +66,27 @@ interface ConversationThreadProps {
 }
 
 // 地図コンポーネント
-function ReportLocationMap({ report }: { report: Report }) {
-	// デフォルト座標または実際の報告場所の座標
-	const latitude = report.latitude || 35.6812;
-	const longitude = report.longitude || 139.7671;
+function ReportLocationMap({
+	report,
+	postDetail,
+}: {
+	report: Report;
+	postDetail?: PostDetailResponse;
+}) {
+	// 投稿詳細のlocationTrackがある場合は最初の位置を使用、なければreportの座標、最後にデフォルト座標
+	let latitude = 35.6812; // デフォルト座標（東京）
+	let longitude = 139.7671;
+
+	if (postDetail?.locationTrack && postDetail.locationTrack.length > 0) {
+		// locationTrackの最初の位置を使用（録画開始位置）
+		latitude = postDetail.locationTrack[0].latitude;
+		longitude = postDetail.locationTrack[0].longitude;
+	} else if (report.latitude && report.longitude) {
+		// reportオブジェクトに座標がある場合はそれを使用
+		latitude = report.latitude;
+		longitude = report.longitude;
+	}
+
 	const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${longitude - 0.01},${latitude - 0.01},${longitude + 0.01},${latitude + 0.01}&layer=mapnik&marker=${latitude},${longitude}`;
 
 	return (
