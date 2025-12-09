@@ -204,6 +204,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ShelterDetails"
+        status:
+          type: string
+          nullable: true
+          description: 現在の状況ステータス
+          enum:
+            - 緊急
+            - 重要
+            - 通常
         "400":
           description: 不正な避難所IDが指定されました
           content:
@@ -701,6 +709,14 @@ components:
           type: string
         comment_count:
           type: integer
+        status:
+          type: string
+          nullable: true
+          description: 現在の状況ステータス
+          enum:
+            - 緊急
+            - 重要
+            - 通常
       required:
         - id
         - author_name
