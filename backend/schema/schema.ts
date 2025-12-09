@@ -604,6 +604,11 @@ export interface components {
 			authorName: string;
 			/** @description コメント本文 */
 			content: string;
+			/**
+			 * @description コメントに紐づく状況ステータス
+			 * @enum {string|null}
+			 */
+			status?: "未対応" | "対応中" | "対応済み" | null;
 		};
 		CreateCommentResponse: {
 			comment: {
@@ -620,6 +625,11 @@ export interface components {
 				 * @description コメントの作成時刻
 				 */
 				createdAt: string;
+				/**
+				 * @description コメントに紐づく状況ステータス
+				 * @enum {string|null}
+				 */
+				status?: "未対応" | "対応中" | "対応済み" | null;
 			};
 		};
 		PostComment: {
@@ -634,10 +644,20 @@ export interface components {
 			 * @description コメントの作成時刻
 			 */
 			createdAt: string;
+			/**
+			 * @description コメントに紐づく状況ステータス
+			 * @enum {string|null}
+			 */
+			status?: "未対応" | "対応中" | "対応済み" | null;
 		};
 		PostCommentsResponse: {
 			/** @description 対象の投稿ID */
 			postId: string;
+			/**
+			 * @description 現在の状況ステータス
+			 * @enum {string|null}
+			 */
+			status?: "緊急" | "重要" | "通常" | null;
 			/** @description 対象の投稿がフリーチャットの場合は true */
 			isFreeChat?: boolean;
 			/** @description コメント一覧 */

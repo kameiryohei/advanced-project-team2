@@ -278,6 +278,16 @@ app.post("/posts", async (c) => {
 			}
 		}
 
+		const allowedPostStatuses = ["緊急", "重要", "通常"] as const;
+		const statusInput = reqBody.status;
+		const postStatus =
+			typeof statusInput === "string" &&
+			allowedPostStatuses.includes(
+				statusInput as (typeof allowedPostStatuses)[number],
+			)
+				? (statusInput as (typeof allowedPostStatuses)[number])
+				: null;
+
 		const now = new Date().toISOString();
 		const postId = uuidv4();
 
@@ -298,6 +308,7 @@ app.post("/posts", async (c) => {
 			is_synced: 0,
 			createdAtByPost: now,
 			is_free_chat: 0,
+			status: postStatus,
 			mediaId: null,
 			filePath: null,
 			mediaType: null,
@@ -561,26 +572,25 @@ app.get("/posts/:id/comments", async (c) => {
 	const db = dbConnect(c.env);
 
 	try {
-		// posts テーブルから is_free_chat を取得（null の場合は投稿が存在しないと見なす）
-		const isFreeChatVal = await shelterRepository.fetchPostIsFreeChat(
-			db,
-			postId,
-		);
+		// posts テーブルから is_free_chat と status を取得（null の場合は投稿が存在しないと見なす）
+		const postMeta = await shelterRepository.fetchPostIsFreeChat(db, postId);
 
-		if (isFreeChatVal === null) {
+		if (postMeta === null) {
 			const errorResponse: components["schemas"]["ErrorResponse"] = {
 				error: "対象の投稿が見つかりません",
 			};
 			return c.json(errorResponse, 404);
 		}
 
-		const isFreeChat = isFreeChatVal === 1;
+		const isFreeChat = postMeta.isFreeChat === 1;
+		const status = postMeta.status ?? null;
 
 		const comments = await shelterRepository.fetchCommentsByPost(db, postId);
 
 		const response: paths["/posts/{id}/comments"]["get"]["responses"]["200"]["content"]["application/json"] =
 			{
 				postId,
+				status,
 				isFreeChat,
 				comments,
 			};
@@ -623,6 +633,14 @@ app.post("/posts/:id/comments", async (c) => {
 			return c.json(errorResponse, 400);
 		}
 
+		const allowedStatuses = ["未対応", "対応中", "対応済み"] as const;
+		const statusInput = reqBody.status;
+		const status =
+			typeof statusInput === "string" &&
+			allowedStatuses.includes(statusInput as (typeof allowedStatuses)[number])
+				? (statusInput as (typeof allowedStatuses)[number])
+				: undefined;
+
 		const commentId = uuidv4();
 
 		try {
@@ -631,6 +649,7 @@ app.post("/posts/:id/comments", async (c) => {
 				postId,
 				authorName: reqBody.authorName,
 				content: reqBody.content,
+				status,
 			});
 
 			const response: paths["/posts/{id}/comments"]["post"]["responses"]["201"]["content"]["application/json"] =
@@ -641,6 +660,7 @@ app.post("/posts/:id/comments", async (c) => {
 						authorName: result.authorName,
 						content: result.content,
 						createdAt: result.createdAt,
+						status: result.status,
 					},
 				};
 
