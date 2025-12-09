@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import type { PostPostsBody, CreatePostRequest } from "@/api/generated/model";
+import type { CreatePostRequest, PostPostsBody } from "@/api/generated/model";
 import { getApiGeocodeReverse, usePostPosts } from "@/api/generated/team2API";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -172,7 +172,6 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 						`住所の取得に失敗しました\n緯度: ${latitude.toFixed(6)}, 経度: ${longitude.toFixed(6)}`,
 					);
 				}
-
 			},
 			(error) => {
 				console.error("位置情報取得エラー:", error);
@@ -744,7 +743,7 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 												muted
 												controls={false}
 												className="w-full h-64 object-cover"
-												style={{ transform: "scaleX(-1)" }}
+												// style={{ transform: "scaleX(-1)" }}
 												onLoadedMetadata={(e) => {
 													const video = e.target as HTMLVideoElement;
 													console.log("ビデオメタデータが読み込まれました", {
