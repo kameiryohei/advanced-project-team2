@@ -10,7 +10,7 @@ import {
 	User,
 } from "lucide-react";
 import type React from "react";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type {
 	CreateCommentRequest,
 	PostDetailResponse,
@@ -47,7 +47,7 @@ interface Report {
 	datetime: string;
 	address: string;
 	details: string;
-	status: "unassigned" | "in-progress" | "resolved";
+	status: "緊急" | "重要" | "通常" | null;
 	reporter: string;
 	attachment?: string;
 	responder?: string;
@@ -59,7 +59,6 @@ interface ConversationThreadProps {
 	report: Report;
 	messages: Message[];
 	onBack: () => void;
-	onAddMessage: (reportId: string, message: Omit<Message, "id">) => void;
 	onUpdateReportStatus: (reportId: string, status: Report["status"]) => void;
 	postDetail?: PostDetailResponse;
 	isLoadingPostDetail?: boolean;
@@ -116,17 +115,22 @@ function ReportLocationMap({
 	);
 }
 
-const getStatusColor = (status: string) => {
+const getStatusColor = (status: string | null | undefined) => {
 	switch (status) {
-		case "unassigned":
+		case "緊急":
+			return "bg-destructive text-destructive-foreground"; // 赤色（緊急）
+		case "重要":
+			return "bg-secondary text-secondary-foreground"; // オレンジ色（重要）
+		case "通常":
+			return "bg-chart-1 text-white"; // 緑色（通常）
+		// コメントステータス
 		case "未対応":
 			return "bg-destructive text-destructive-foreground"; // 赤色（未対応）
-		case "in-progress":
 		case "対応中":
 			return "bg-secondary text-secondary-foreground"; // オレンジ色（対応中）
-		case "resolved":
+		case "対応済み":
 		case "解決済み":
-			return "bg-chart-1 text-white"; // 緑色（解決済み）
+			return "bg-chart-1 text-white"; // 緑色（対応済み/解決済み）
 		// 古い形式との互換性のため残す
 		case "reported":
 		case "通報":
@@ -146,7 +150,6 @@ export function ConversationThread({
 	report,
 	messages,
 	onBack,
-	onAddMessage,
 	onUpdateReportStatus,
 	postDetail,
 	isLoadingPostDetail,
@@ -169,6 +172,9 @@ export function ConversationThread({
 	// Generate unique IDs for form elements
 	const responderInputId = useId();
 	const messageInputId = useId();
+
+	// コメント一覧の末尾への参照を作成
+	const messagesEndRef = useRef<HTMLDivElement>(null);
 
 	// 投稿詳細の位置情報をコンソールに出力
 	useEffect(() => {
@@ -207,6 +213,9 @@ export function ConversationThread({
 			const commentData: CreateCommentRequest = {
 				authorName: responderName,
 				content: newMessage,
+				...(newStatus && {
+					status: newStatus as CreateCommentRequest["status"],
+				}),
 			};
 
 			// APIを呼び出してコメントを作成
@@ -220,32 +229,12 @@ export function ConversationThread({
 			// コメント一覧を再取得
 			await refetchComments();
 
-			// 従来のコールバックも呼び出し（既存の機能との互換性）
-			const messageData = {
-				time: new Date()
-					.toLocaleString("ja-JP", {
-						year: "numeric",
-						month: "2-digit",
-						day: "2-digit",
-						hour: "2-digit",
-						minute: "2-digit",
-					})
-					.replace(/\//g, "/")
-					.replace(",", ""),
-				responder: responderName,
-				message: newMessage,
-				status: newStatus || "対応中",
-				isResponder: responderName !== report.reporter,
-			};
-
-			onAddMessage(report.id, messageData);
-
 			// Update report status if new status is provided
 			if (newStatus && newStatus !== report.status) {
 				const statusMap: { [key: string]: Report["status"] } = {
-					未対応: "unassigned",
-					対応中: "in-progress",
-					解決済み: "resolved",
+					緊急: "緊急",
+					重要: "重要",
+					通常: "通常",
 				};
 				if (statusMap[newStatus]) {
 					onUpdateReportStatus(report.id, statusMap[newStatus]);
@@ -255,6 +244,11 @@ export function ConversationThread({
 			setNewMessage("");
 			setNewStatus("");
 			setIsSubmitting(false);
+
+			// 最新のコメントまでスクロール
+			setTimeout(() => {
+				messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+			}, 100);
 		} catch (error) {
 			console.error("コメントの作成に失敗しました:", error);
 			alert("コメントの投稿に失敗しました。もう一度お試しください。");
@@ -283,11 +277,7 @@ export function ConversationThread({
 							</div>
 						</div>
 						<Badge className={getStatusColor(report.status)}>
-							{report.status === "unassigned"
-								? "未対応"
-								: report.status === "in-progress"
-									? "対応中"
-									: "解決済み"}
+							{report.status || "-"}
 						</Badge>
 					</div>
 				</CardHeader>
@@ -474,12 +464,19 @@ export function ConversationThread({
 												<div className="rounded-lg p-3 bg-card border">
 													<div className="flex items-center gap-2 mb-1">
 														<User className="h-4 w-4" />
+														<span className="text-xs text-muted-foreground">
+															対応者:
+														</span>
 														<span className="font-medium text-sm">
 															{comment.authorName}
 														</span>
-														<Badge variant="outline" className="text-xs">
-															対応者
-														</Badge>
+														{comment.status && (
+															<Badge
+																className={`text-xs ${getStatusColor(comment.status)}`}
+															>
+																{comment.status}
+															</Badge>
+														)}
 													</div>
 													<p className="text-sm">{comment.content}</p>
 													<span className="text-xs text-muted-foreground mt-2 block">
@@ -536,6 +533,8 @@ export function ConversationThread({
 									)),
 								]
 							)}
+							{/* スクロール用の参照要素 */}
+							<div ref={messagesEndRef} />
 						</div>
 
 						{/* New Message Form */}
@@ -556,12 +555,12 @@ export function ConversationThread({
 										<Label htmlFor="status">ステータス更新</Label>
 										<Select value={newStatus} onValueChange={setNewStatus}>
 											<SelectTrigger>
-												<SelectValue placeholder="ステータスを選択（任意）" />
+												<SelectValue placeholder="ステータスを選択(任意)" />
 											</SelectTrigger>
 											<SelectContent>
 												<SelectItem value="未対応">未対応</SelectItem>
 												<SelectItem value="対応中">対応中</SelectItem>
-												<SelectItem value="解決済み">解決済み</SelectItem>
+												<SelectItem value="対応済み">対応済み</SelectItem>
 											</SelectContent>
 										</Select>
 									</div>
