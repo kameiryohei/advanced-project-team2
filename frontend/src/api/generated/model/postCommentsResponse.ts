@@ -4,11 +4,17 @@
  * 先進プロジェクト実験 Team2 避難所 API
  * OpenAPI spec version: 1.0.0
  */
+import type { PostCommentsResponseStatus } from './postCommentsResponseStatus';
 import type { PostComment } from './postComment';
 
 export interface PostCommentsResponse {
   /** 対象の投稿ID */
   postId: string;
+  /**
+   * 現在の状況ステータス
+   * @nullable
+   */
+  status?: PostCommentsResponseStatus;
   /** 対象の投稿がフリーチャットの場合は true */
   isFreeChat?: boolean;
   /** コメント一覧 */

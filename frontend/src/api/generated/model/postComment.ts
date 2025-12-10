@@ -4,6 +4,7 @@
  * 先進プロジェクト実験 Team2 避難所 API
  * OpenAPI spec version: 1.0.0
  */
+import type { PostCommentStatus } from './postCommentStatus';
 
 export interface PostComment {
   /** コメントID */
@@ -14,4 +15,9 @@ export interface PostComment {
   content: string;
   /** コメントの作成時刻 */
   createdAt: string;
+  /**
+   * コメントに紐づく状況ステータス
+   * @nullable
+   */
+  status?: PostCommentStatus;
 }

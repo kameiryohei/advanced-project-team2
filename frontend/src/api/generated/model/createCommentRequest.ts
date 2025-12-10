@@ -4,10 +4,16 @@
  * 先進プロジェクト実験 Team2 避難所 API
  * OpenAPI spec version: 1.0.0
  */
+import type { CreateCommentRequestStatus } from './createCommentRequestStatus';
 
 export interface CreateCommentRequest {
   /** コメント投稿者の表示名 */
   authorName: string;
   /** コメント本文 */
   content: string;
+  /**
+   * コメントに紐づく状況ステータス
+   * @nullable
+   */
+  status?: CreateCommentRequestStatus;
 }

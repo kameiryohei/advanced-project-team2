@@ -4,6 +4,7 @@
  * 先進プロジェクト実験 Team2 避難所 API
  * OpenAPI spec version: 1.0.0
  */
+import type { CreateCommentResponseCommentStatus } from './createCommentResponseCommentStatus';
 
 export type CreateCommentResponseComment = {
   /** コメントID */
@@ -16,4 +17,9 @@ export type CreateCommentResponseComment = {
   content: string;
   /** コメントの作成時刻 */
   createdAt: string;
+  /**
+   * コメントに紐づく状況ステータス
+   * @nullable
+   */
+  status?: CreateCommentResponseCommentStatus;
 };

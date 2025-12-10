@@ -4,6 +4,7 @@
  * 先進プロジェクト実験 Team2 避難所 API
  * OpenAPI spec version: 1.0.0
  */
+import type { ShelterPostStatus } from './shelterPostStatus';
 
 export interface ShelterPost {
   id: string;
@@ -13,4 +14,9 @@ export interface ShelterPost {
   posted_at: string;
   shelter_name: string;
   comment_count: number;
+  /**
+   * 現在の状況ステータス
+   * @nullable
+   */
+  status?: ShelterPostStatus;
 }
