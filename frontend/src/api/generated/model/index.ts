@@ -6,8 +6,10 @@
  */
 
 export * from './createCommentRequest';
+export * from './createCommentRequestStatus';
 export * from './createCommentResponse';
 export * from './createCommentResponseComment';
+export * from './createCommentResponseCommentStatus';
 export * from './createPostRequest';
 export * from './createPostRequestStatus';
 export * from './createPostResponse';
@@ -20,7 +22,9 @@ export * from './locationTrackPoint';
 export * from './mediaItem';
 export * from './okResponse';
 export * from './postComment';
+export * from './postCommentStatus';
 export * from './postCommentsResponse';
+export * from './postCommentsResponseStatus';
 export * from './postDetailResponse';
 export * from './postDetailResponseStatus';
 export * from './postMediaItem';
@@ -33,5 +37,6 @@ export * from './reverseGeocoderResponse';
 export * from './shelterDetails';
 export * from './shelterListWithCountResponse';
 export * from './shelterPost';
+export * from './shelterPostStatus';
 export * from './shelterPostsResponse';
 export * from './shelterSummary';

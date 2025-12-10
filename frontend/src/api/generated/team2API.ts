@@ -422,7 +422,7 @@ export const getGetSheltersIdQueryKey = (id?: number,) => {
     }
 
     
-export const getGetSheltersIdQueryOptions = <TData = Awaited<ReturnType<typeof getSheltersId>>, TError = ErrorType<ErrorResponse | ErrorResponse>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSheltersId>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+export const getGetSheltersIdQueryOptions = <TData = Awaited<ReturnType<typeof getSheltersId>>, TError = ErrorType<ErrorResponse | ErrorResponse | void>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSheltersId>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -441,10 +441,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetSheltersIdQueryResult = NonNullable<Awaited<ReturnType<typeof getSheltersId>>>
-export type GetSheltersIdQueryError = ErrorType<ErrorResponse | ErrorResponse>
+export type GetSheltersIdQueryError = ErrorType<ErrorResponse | ErrorResponse | void>
 
 
-export function useGetSheltersId<TData = Awaited<ReturnType<typeof getSheltersId>>, TError = ErrorType<ErrorResponse | ErrorResponse>>(
+export function useGetSheltersId<TData = Awaited<ReturnType<typeof getSheltersId>>, TError = ErrorType<ErrorResponse | ErrorResponse | void>>(
  id: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSheltersId>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getSheltersId>>,
@@ -454,7 +454,7 @@ export function useGetSheltersId<TData = Awaited<ReturnType<typeof getSheltersId
       >, request?: SecondParameter<typeof axiosInstance>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetSheltersId<TData = Awaited<ReturnType<typeof getSheltersId>>, TError = ErrorType<ErrorResponse | ErrorResponse>>(
+export function useGetSheltersId<TData = Awaited<ReturnType<typeof getSheltersId>>, TError = ErrorType<ErrorResponse | ErrorResponse | void>>(
  id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSheltersId>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getSheltersId>>,
@@ -464,7 +464,7 @@ export function useGetSheltersId<TData = Awaited<ReturnType<typeof getSheltersId
       >, request?: SecondParameter<typeof axiosInstance>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetSheltersId<TData = Awaited<ReturnType<typeof getSheltersId>>, TError = ErrorType<ErrorResponse | ErrorResponse>>(
+export function useGetSheltersId<TData = Awaited<ReturnType<typeof getSheltersId>>, TError = ErrorType<ErrorResponse | ErrorResponse | void>>(
  id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSheltersId>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
@@ -472,7 +472,7 @@ export function useGetSheltersId<TData = Awaited<ReturnType<typeof getSheltersId
  * @summary 避難所の詳細を取得
  */
 
-export function useGetSheltersId<TData = Awaited<ReturnType<typeof getSheltersId>>, TError = ErrorType<ErrorResponse | ErrorResponse>>(
+export function useGetSheltersId<TData = Awaited<ReturnType<typeof getSheltersId>>, TError = ErrorType<ErrorResponse | ErrorResponse | void>>(
  id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSheltersId>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {

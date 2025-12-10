@@ -709,7 +709,7 @@ export interface components {
 			content?: string | null;
 			/** Format: date-time */
 			posted_at: string;
-			shelter_name: string;
+			address?: string | null;
 			comment_count: number;
 			/**
 			 * @description 現在の状況ステータス

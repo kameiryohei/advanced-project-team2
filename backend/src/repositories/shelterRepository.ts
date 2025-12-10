@@ -26,7 +26,7 @@ export type ShelterPostSummary = {
 	author_name: string;
 	content: string | null;
 	posted_at: string;
-	shelter_name: string;
+	address: string | null;
 	comment_count: number;
 	status: "緊急" | "重要" | "通常" | null;
 };
@@ -96,7 +96,7 @@ const recentPostsByShelterQuery = `SELECT
 	p.content,
 	p.posted_at,
 	p.status,
-	s.name AS shelter_name,
+	s.address AS address,
 	COUNT(c.id) AS comment_count
 FROM posts AS p
 INNER JOIN shelters AS s ON p.shelter_id = s.id
@@ -108,7 +108,7 @@ GROUP BY
 	p.content,
 	p.posted_at,
 	p.status,
-	s.name
+	s.address
 ORDER BY p.posted_at DESC
 LIMIT 5`;
 

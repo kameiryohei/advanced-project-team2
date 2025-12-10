@@ -705,8 +705,9 @@ components:
         posted_at:
           type: string
           format: date-time
-        shelter_name:
+        address:
           type: string
+          nullable: true
         comment_count:
           type: integer
         status:
@@ -721,7 +722,6 @@ components:
         - id
         - author_name
         - posted_at
-        - shelter_name
         - comment_count
     ReverseGeocoderResponse:
       type: object
