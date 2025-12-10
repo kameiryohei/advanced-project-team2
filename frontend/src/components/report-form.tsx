@@ -73,7 +73,7 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 		priority: "通常" as Priority,
 		reporter: "",
 		attachment: null as File | null,
-		responder: "通常",
+		responder: "",
 	});
 
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -256,7 +256,7 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 				status: formData.priority, // 緊急度を status として使用
 				reporter: formData.reporter,
 				attachment: formData.attachment ? formData.attachment.name : undefined,
-				responder: formData.responder,
+				responder: formData.responder || "未割り当て",
 				location: coords,
 			};
 
