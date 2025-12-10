@@ -30,7 +30,7 @@ interface Report {
 	datetime: string;
 	address: string;
 	details: string;
-	status: "unassigned" | "in-progress" | "resolved";
+	status: "緊急" | "重要" | "通常" | null;
 	reporter: string;
 	attachment?: string;
 	responder?: string;
@@ -51,14 +51,14 @@ interface ShelterDashboardProps {
 	shelterId?: string;
 }
 
-const getStatusColor = (status: string) => {
+const getStatusColor = (status: string | null | undefined) => {
 	switch (status) {
-		case "unassigned":
-			return "bg-destructive text-destructive-foreground"; // 赤色（未対応）
-		case "in-progress":
-			return "bg-secondary text-secondary-foreground"; // オレンジ色（対応中）
-		case "resolved":
-			return "bg-chart-1 text-foreground"; // 緑色（解決済み）
+		case "緊急":
+			return "bg-destructive text-destructive-foreground"; // 赤色（緊急）
+		case "重要":
+			return "bg-secondary text-secondary-foreground"; // オレンジ色（重要）
+		case "通常":
+			return "bg-chart-1 text-foreground"; // 緑色（通常）
 		default:
 			return "bg-muted text-muted-foreground";
 	}
@@ -95,31 +95,24 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 		if (shelterPosts) {
 			console.log("避難所投稿データ:", shelterPosts);
 			// APIから取得した投稿データを現在の報告リストに変換
-			const convertedReports: Report[] = shelterPosts.posts.map(
-				(post, index) => ({
-					id: post.id,
-					datetime: new Date(post.posted_at)
-						.toLocaleString("ja-JP", {
-							year: "numeric",
-							month: "2-digit",
-							day: "2-digit",
-							hour: "2-digit",
-							minute: "2-digit",
-						})
-						.replace(/\//g, "/")
-						.replace(",", ""),
-					address: post.shelter_name || `避難所 ${currentShelterId}`,
-					details: post.content || "投稿内容なし",
-					status:
-						index % 3 === 0
-							? "unassigned"
-							: index % 3 === 1
-								? "in-progress"
-								: "resolved",
-					reporter: post.author_name,
-					responder: "未対応",
-				}),
-			);
+			const convertedReports: Report[] = shelterPosts.posts.map((post) => ({
+				id: post.id,
+				datetime: new Date(post.posted_at)
+					.toLocaleString("ja-JP", {
+						year: "numeric",
+						month: "2-digit",
+						day: "2-digit",
+						hour: "2-digit",
+						minute: "2-digit",
+					})
+					.replace(/\//g, "/")
+					.replace(",", ""),
+				address: post.address || `避難所 ${currentShelterId}`,
+				details: post.content || "投稿内容なし",
+				status: post.status || null,
+				reporter: post.author_name,
+				responder: post.status || "-",
+			}));
 			setReports(convertedReports);
 		}
 	}, [sheltersData, shelterDetails, shelterPosts, currentShelterId]);
@@ -151,30 +144,6 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 			syncService.addPendingOperation({
 				type: "create_report",
 				data: newReport,
-				shelterId: shelterId,
-			});
-		}
-	};
-
-	const handleAddMessage = (
-		reportId: string,
-		messageData: Omit<Message, "id">,
-	) => {
-		const newMessage = {
-			...messageData,
-			id: Date.now().toString(),
-		};
-
-		setMessages((prev) => ({
-			...prev,
-			[reportId]: [...(prev[reportId] || []), newMessage],
-		}));
-
-		const syncStatus = syncService.getSyncStatus();
-		if (!syncStatus.isOnline) {
-			syncService.addPendingOperation({
-				type: "add_message",
-				data: { reportId, message: newMessage },
 				shelterId: shelterId,
 			});
 		}
@@ -250,7 +219,7 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 						<CardTitle className="text-sm font-medium">
-							{shelterPosts ? "投稿数" : "未対応報告"}
+							{shelterPosts ? "投稿数" : "緊急報告"}
 						</CardTitle>
 						<AlertTriangle className="h-4 w-4 text-destructive" />
 					</CardHeader>
@@ -258,7 +227,7 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 						<div className="text-2xl font-bold text-destructive">
 							{shelterPosts
 								? shelterPosts.posts.length
-								: reports.filter((r) => r.status === "unassigned").length}
+								: reports.filter((r) => r.status === "緊急").length}
 							件
 						</div>
 						<p className="text-xs text-muted-foreground">
@@ -312,7 +281,6 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 							report={selectedReportData}
 							messages={messages[selectedReport] || []}
 							onBack={() => setSelectedReport(null)}
-							onAddMessage={handleAddMessage}
 							onUpdateReportStatus={handleUpdateReportStatus}
 							postDetail={selectedPostDetail}
 							isLoadingPostDetail={isLoadingPostDetail}
@@ -357,11 +325,7 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 														<td className="p-4">{report.details}</td>
 														<td className="p-4">
 															<Badge className={getStatusColor(report.status)}>
-																{report.status === "unassigned"
-																	? "未対応"
-																	: report.status === "in-progress"
-																		? "対応中"
-																		: "解決済み"}
+																{report.status || "-"}
 															</Badge>
 														</td>
 														<td className="p-4">{report.reporter}</td>
@@ -396,28 +360,21 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 											className="w-3 h-3 rounded-full"
 											style={{ backgroundColor: "#ef4444" }}
 										></div>
-										<span>未対応</span>
+										<span>緊急</span>
 									</div>
 									<div className="flex items-center space-x-2">
 										<div
 											className="w-3 h-3 rounded-full"
 											style={{ backgroundColor: "#f59e0b" }}
 										></div>
-										<span>対応中</span>
+										<span>重要</span>
 									</div>
-									{/* <div className="flex items-center space-x-2">
-										<div
-											className="w-3 h-3 rounded-full"
-											style={{ backgroundColor: "#3b82f6" }}
-										></div>
-										<span>監視中</span>
-									</div> */}
 									<div className="flex items-center space-x-2">
 										<div
 											className="w-3 h-3 rounded-full"
 											style={{ backgroundColor: "#10b981" }}
 										></div>
-										<span>解決済み</span>
+										<span>通常</span>
 									</div>
 								</div>
 							</CardContent>
@@ -469,28 +426,21 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 											className="w-3 h-3 rounded-full"
 											style={{ backgroundColor: "#ef4444" }}
 										></div>
-										<span>未対応</span>
+										<span>緊急</span>
 									</div>
 									<div className="flex items-center space-x-2">
 										<div
 											className="w-3 h-3 rounded-full"
 											style={{ backgroundColor: "#f59e0b" }}
 										></div>
-										<span>対応中</span>
+										<span>重要</span>
 									</div>
-									{/* <div className="flex items-center space-x-2">
-										<div
-											className="w-3 h-3 rounded-full"
-											style={{ backgroundColor: "#3b82f6" }}
-										></div>
-										<span>監視中</span>
-									</div> */}
 									<div className="flex items-center space-x-2">
 										<div
 											className="w-3 h-3 rounded-full"
 											style={{ backgroundColor: "#10b981" }}
 										></div>
-										<span>解決済み</span>
+										<span>通常</span>
 									</div>
 								</div>
 							</CardContent>
