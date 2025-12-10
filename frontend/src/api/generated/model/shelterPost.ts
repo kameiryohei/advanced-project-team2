@@ -12,7 +12,8 @@ export interface ShelterPost {
   /** @nullable */
   content?: string | null;
   posted_at: string;
-  shelter_name: string;
+  /** @nullable */
+  address?: string | null;
   comment_count: number;
   /**
    * 現在の状況ステータス
