@@ -13,7 +13,7 @@ interface Report {
 	datetime: string;
 	address: string;
 	details: string;
-	status: "unassigned" | "in-progress" | "resolved";
+	status: "緊急" | "重要" | "通常" | null;
 	reporter: string;
 	attachment?: string;
 	responder?: string;
@@ -53,30 +53,21 @@ export function ReportMap({ reports, onReportSelect }: ReportMapProps) {
 		});
 	};
 
-	const getIconByStatus = (status: string) => {
+	const getIconByStatus = (status: string | null) => {
 		switch (status) {
-			case "unassigned":
-				return createCustomIcon("#ef4444"); // 赤色（未対応）
-			case "in-progress":
-				return createCustomIcon("#f59e0b"); // オレンジ色（対応中）
-			case "resolved":
-				return createCustomIcon("#10b981"); // 緑色（解決済み）
+			case "緊急":
+				return createCustomIcon("#ef4444"); // 赤色（緊急）
+			case "重要":
+				return createCustomIcon("#f59e0b"); // オレンジ色（重要）
+			case "通常":
+				return createCustomIcon("#10b981"); // 緑色（通常）
 			default:
 				return createCustomIcon("#6b7280"); // グレー（不明）
 		}
 	};
 
-	const getStatusLabel = (status: string) => {
-		switch (status) {
-			case "unassigned":
-				return "未対応";
-			case "in-progress":
-				return "対応中";
-			case "resolved":
-				return "解決済み";
-			default:
-				return "不明";
-		}
+	const getStatusLabel = (status: string | null) => {
+		return status || "不明";
 	};
 
 	const reportsWithLocation = reports.filter(
@@ -134,9 +125,9 @@ export function ReportMap({ reports, onReportSelect }: ReportMapProps) {
 										<span className="font-medium">状態:</span>{" "}
 										<span
 											className={
-												report.status === "resolved"
+												report.status === "通常"
 													? "text-green-600"
-													: report.status === "in-progress"
+													: report.status === "重要"
 														? "text-orange-600"
 														: "text-red-600"
 											}
