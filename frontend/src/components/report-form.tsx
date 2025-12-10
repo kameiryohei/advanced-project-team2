@@ -37,7 +37,7 @@ interface ReportData {
 	datetime: string;
 	address: string;
 	details: string;
-	status: "unassigned" | "in-progress" | "resolved";
+	status: "緊急" | "重要" | "通常" | null;
 	reporter: string;
 	attachment?: string;
 	responder: string;
@@ -69,11 +69,11 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 		datetime: getJSTDatetimeString(),
 		address: "",
 		details: "",
-		status: "unassigned" as ReportData["status"],
+		status: "通常" as ReportData["status"],
 		priority: "通常" as Priority,
 		reporter: "",
 		attachment: null as File | null,
-		responder: "未対応",
+		responder: "通常",
 	});
 
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -202,7 +202,7 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 			const metadata: CreatePostRequest = {
 				shelterId: shelterId,
 				authorName: formData.reporter,
-				content: `${formData.details}\n\n発生場所: ${formData.address}`,
+				content: formData.details,
 				occurredAt: new Date(formData.datetime).toISOString(),
 				status: formData.priority,
 				locationTrack: coords
@@ -253,7 +253,7 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 					.replace(",", ""),
 				address: formData.address,
 				details: formData.details,
-				status: formData.status,
+				status: formData.priority, // 緊急度を status として使用
 				reporter: formData.reporter,
 				attachment: formData.attachment ? formData.attachment.name : undefined,
 				responder: formData.responder,
