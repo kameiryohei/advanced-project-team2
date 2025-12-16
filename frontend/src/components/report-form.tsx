@@ -476,13 +476,53 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 								longitude,
 							};
 							setLocationTracks((prev) => {
-								const newTracks = [...prev, locationPoint];
-								console.log(
-									"🚶 移動経路追跡:",
-									locationPoint,
-									"総ポイント数:",
-									newTracks.length,
+								// 重複チェック（約0.1m精度） - 少しでも位置が違えば別の点として扱う
+								const isDuplicate = prev.some(
+									(point) =>
+										Math.abs(point.latitude - latitude) < 0.000001 &&
+										Math.abs(point.longitude - longitude) < 0.000001,
 								);
+
+								if (isDuplicate) {
+									console.log("🔄 完全一致の位置のため追加をスキップ:", {
+										lat: latitude.toFixed(8),
+										lon: longitude.toFixed(8),
+										time: new Date().toLocaleTimeString(),
+										accuracy: position.coords.accuracy
+											? `${position.coords.accuracy.toFixed(1)}m`
+											: "不明",
+									});
+									return prev;
+								}
+
+								const newTracks = [...prev, locationPoint];
+								console.log("✅ 新しい位置を追加:", {
+									point: {
+										lat: latitude.toFixed(8),
+										lon: longitude.toFixed(8),
+										time: new Date().toLocaleTimeString(),
+										accuracy: position.coords.accuracy
+											? `${position.coords.accuracy.toFixed(1)}m`
+											: "不明",
+									},
+									totalPoints: newTracks.length,
+									previousPoint:
+										prev.length > 0
+											? {
+													lat: prev[prev.length - 1].latitude.toFixed(8),
+													lon: prev[prev.length - 1].longitude.toFixed(8),
+												}
+											: null,
+									distance:
+										prev.length > 0
+											? `${getDistanceFromLatLonInMeters(
+													prev[prev.length - 1].latitude,
+													prev[prev.length - 1].longitude,
+													latitude,
+													longitude,
+												).toFixed(2)}m`
+											: "初回",
+								});
 								return newTracks;
 							});
 						},
@@ -517,6 +557,31 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 			clearInterval(locationTrackingIntervalRef.current);
 			locationTrackingIntervalRef.current = null;
 		}
+	};
+
+	// 距離計算関数
+	const getDistanceFromLatLonInMeters = (
+		lat1: number,
+		lon1: number,
+		lat2: number,
+		lon2: number,
+	) => {
+		const R = 6371000; // 地球の半径（メートル）
+		const dLat = deg2rad(lat2 - lat1);
+		const dLon = deg2rad(lon2 - lon1);
+		const a =
+			Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+			Math.cos(deg2rad(lat1)) *
+				Math.cos(deg2rad(lat2)) *
+				Math.sin(dLon / 2) *
+				Math.sin(dLon / 2);
+		const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+		const d = R * c; // 距離（メートル）
+		return d;
+	};
+
+	const deg2rad = (deg: number) => {
+		return deg * (Math.PI / 180);
 	};
 
 	// コンポーネントマウント時に自動的に位置情報を取得
