@@ -36,7 +36,12 @@ import type {
   ReverseGeocoderResponse,
   ShelterDetails,
   ShelterListWithCountResponse,
-  ShelterPostsResponse
+  ShelterPostsResponse,
+  SyncExecuteRequest,
+  SyncExecuteResponse,
+  SyncReceiveRequest,
+  SyncReceiveResponse,
+  SyncStatusResponse
 } from './model';
 
 import { axiosInstance } from '../axios-instance';
@@ -141,6 +146,231 @@ export function useGetApiGeocodeReverse<TData = Awaited<ReturnType<typeof getApi
 
 
 
+/**
+ * 未同期データの統計情報を取得します。
+ * @summary 同期ステータスを取得
+ */
+export const getApiSyncStatus = (
+    
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return axiosInstance<SyncStatusResponse>(
+      {url: `/api/sync/status`, method: 'GET', signal
+    },
+      options);
+    }
+  
+
+
+
+export const getGetApiSyncStatusQueryKey = () => {
+    return [
+    `/api/sync/status`
+    ] as const;
+    }
+
+    
+export const getGetApiSyncStatusQueryOptions = <TData = Awaited<ReturnType<typeof getApiSyncStatus>>, TError = ErrorType<ErrorResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiSyncStatus>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetApiSyncStatusQueryKey();
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getApiSyncStatus>>> = ({ signal }) => getApiSyncStatus(requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getApiSyncStatus>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetApiSyncStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getApiSyncStatus>>>
+export type GetApiSyncStatusQueryError = ErrorType<ErrorResponse>
+
+
+export function useGetApiSyncStatus<TData = Awaited<ReturnType<typeof getApiSyncStatus>>, TError = ErrorType<ErrorResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiSyncStatus>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getApiSyncStatus>>,
+          TError,
+          Awaited<ReturnType<typeof getApiSyncStatus>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetApiSyncStatus<TData = Awaited<ReturnType<typeof getApiSyncStatus>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiSyncStatus>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getApiSyncStatus>>,
+          TError,
+          Awaited<ReturnType<typeof getApiSyncStatus>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetApiSyncStatus<TData = Awaited<ReturnType<typeof getApiSyncStatus>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiSyncStatus>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 同期ステータスを取得
+ */
+
+export function useGetApiSyncStatus<TData = Awaited<ReturnType<typeof getApiSyncStatus>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiSyncStatus>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetApiSyncStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+/**
+ * ローカルDBの未同期データを本番DBに同期します。
+ * @summary 同期を実行
+ */
+export const postApiSyncExecute = (
+    syncExecuteRequest: SyncExecuteRequest,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return axiosInstance<SyncExecuteResponse>(
+      {url: `/api/sync/execute`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: syncExecuteRequest, signal
+    },
+      options);
+    }
+  
+
+
+export const getPostApiSyncExecuteMutationOptions = <TError = ErrorType<ErrorResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postApiSyncExecute>>, TError,{data: SyncExecuteRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof postApiSyncExecute>>, TError,{data: SyncExecuteRequest}, TContext> => {
+
+const mutationKey = ['postApiSyncExecute'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postApiSyncExecute>>, {data: SyncExecuteRequest}> = (props) => {
+          const {data} = props ?? {};
+
+          return  postApiSyncExecute(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostApiSyncExecuteMutationResult = NonNullable<Awaited<ReturnType<typeof postApiSyncExecute>>>
+    export type PostApiSyncExecuteMutationBody = SyncExecuteRequest
+    export type PostApiSyncExecuteMutationError = ErrorType<ErrorResponse | ErrorResponse>
+
+    /**
+ * @summary 同期を実行
+ */
+export const usePostApiSyncExecute = <TError = ErrorType<ErrorResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postApiSyncExecute>>, TError,{data: SyncExecuteRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof postApiSyncExecute>>,
+        TError,
+        {data: SyncExecuteRequest},
+        TContext
+      > => {
+
+      const mutationOptions = getPostApiSyncExecuteMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    
+/**
+ * 他の環境からの同期データを受信してDBに保存します。
+ * @summary 同期データを受信
+ */
+export const postApiSyncReceive = (
+    syncReceiveRequest: SyncReceiveRequest,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return axiosInstance<SyncReceiveResponse>(
+      {url: `/api/sync/receive`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: syncReceiveRequest, signal
+    },
+      options);
+    }
+  
+
+
+export const getPostApiSyncReceiveMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postApiSyncReceive>>, TError,{data: SyncReceiveRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof postApiSyncReceive>>, TError,{data: SyncReceiveRequest}, TContext> => {
+
+const mutationKey = ['postApiSyncReceive'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postApiSyncReceive>>, {data: SyncReceiveRequest}> = (props) => {
+          const {data} = props ?? {};
+
+          return  postApiSyncReceive(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostApiSyncReceiveMutationResult = NonNullable<Awaited<ReturnType<typeof postApiSyncReceive>>>
+    export type PostApiSyncReceiveMutationBody = SyncReceiveRequest
+    export type PostApiSyncReceiveMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary 同期データを受信
+ */
+export const usePostApiSyncReceive = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postApiSyncReceive>>, TError,{data: SyncReceiveRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof postApiSyncReceive>>,
+        TError,
+        {data: SyncReceiveRequest},
+        TContext
+      > => {
+
+      const mutationOptions = getPostApiSyncReceiveMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    
 /**
  * 本文・時刻・位置トラックなどのメタデータと、画像/動画ファイルを同梱して投稿します。
  * @summary 投稿を新規作成（メディア同梱）
