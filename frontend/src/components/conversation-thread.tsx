@@ -1,5 +1,6 @@
 "use client";
 
+import L from "leaflet";
 import {
 	ArrowLeft,
 	Clock,
@@ -11,6 +12,8 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useId, useRef, useState } from "react";
+import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
 import type {
 	CreateCommentRequest,
 	PostDetailResponse,
@@ -32,6 +35,42 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+
+// Leafletのデフォルトアイコンを修正
+// biome-ignore lint/suspicious/noExplicitAny: Leaflet internal API requires this
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+	iconRetinaUrl:
+		"https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
+	iconUrl:
+		"https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
+	shadowUrl:
+		"https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+});
+
+// マップの境界を自動調整するコンポーネント
+function MapBounds({
+	locations,
+}: {
+	locations: Array<{ latitude: number; longitude: number }>;
+}) {
+	const map = useMap();
+
+	useEffect(() => {
+		if (locations.length === 0) return;
+
+		if (locations.length === 1) {
+			map.setView([locations[0].latitude, locations[0].longitude], 16);
+		} else {
+			const bounds = L.latLngBounds(
+				locations.map((loc) => [loc.latitude, loc.longitude]),
+			);
+			map.fitBounds(bounds, { padding: [20, 20] });
+		}
+	}, [map, locations]);
+
+	return null;
+}
 
 interface Message {
 	id: string;
@@ -64,7 +103,7 @@ interface ConversationThreadProps {
 	isLoadingPostDetail?: boolean;
 }
 
-// 地図コンポーネント
+// 地図コンポーネント - Leafletを使用して複数ピンを表示
 function ReportLocationMap({
 	report,
 	postDetail,
@@ -72,11 +111,6 @@ function ReportLocationMap({
 	report: Report;
 	postDetail?: PostDetailResponse;
 }) {
-	// 投稿詳細のlocationTrackがある場合は複数のピンを表示、なければreportの座標、最後にデフォルト座標
-	let centerLat = 35.6812; // デフォルト座標（東京）
-	let centerLon = 139.7671;
-	let mapUrl = "";
-
 	// すべての利用可能な位置情報を収集
 	const allLocations: Array<{
 		latitude: number;
@@ -90,42 +124,24 @@ function ReportLocationMap({
 			totalPoints: postDetail.locationTrack.length,
 			firstPoint: postDetail.locationTrack[0],
 			lastPoint: postDetail.locationTrack[postDetail.locationTrack.length - 1],
-			allPoints: postDetail.locationTrack.map((p, i) => ({
-				index: i,
-				lat: p.latitude.toFixed(6),
-				lon: p.longitude.toFixed(6),
-				time: p.recordedAt,
-			})),
 		});
 
-		// 最小限の重複チェック（精度: 約0.1メートル） - 少しでも位置が違えば別の点として扱う
+		// 最小限の重複チェック - 少しでも位置が違えば別の点として扱う
 		for (const track of postDetail.locationTrack) {
 			const isDuplicate = allLocations.some(
 				(loc) =>
-					Math.abs(loc.latitude - track.latitude) < 0.000001 && // 約0.11m精度（極めて厳しい）
+					Math.abs(loc.latitude - track.latitude) < 0.000001 &&
 					Math.abs(loc.longitude - track.longitude) < 0.000001,
 			);
 
 			if (!isDuplicate) {
 				allLocations.push(track);
-				console.log("✅ 新しい位置を追加:", {
-					lat: track.latitude.toFixed(8),
-					lon: track.longitude.toFixed(8),
-					time: track.recordedAt,
-				});
-			} else {
-				console.log("🔄 完全一致の位置を除外:", {
-					lat: track.latitude.toFixed(8),
-					lon: track.longitude.toFixed(8),
-					time: track.recordedAt,
-				});
 			}
 		}
 
 		console.log("🗺️ LocationTrack処理完了:", {
 			originalCount: postDetail.locationTrack.length,
 			uniqueCount: allLocations.length,
-			removedDuplicates: postDetail.locationTrack.length - allLocations.length,
 		});
 	}
 
@@ -137,7 +153,6 @@ function ReportLocationMap({
 			recordedAt: new Date().toISOString(),
 		};
 
-		// 最小限の重複チェック（精度: 約0.1メートル） - 少しでも位置が違えば別の点として扱う
 		const isDuplicate = allLocations.some(
 			(loc) =>
 				Math.abs(loc.latitude - reportLocation.latitude) < 0.000001 &&
@@ -146,138 +161,83 @@ function ReportLocationMap({
 
 		if (!isDuplicate) {
 			allLocations.push(reportLocation);
-			console.log("✅ レポート位置情報を追加:", {
-				lat: reportLocation.latitude.toFixed(8),
-				lon: reportLocation.longitude.toFixed(8),
-			});
-		} else {
-			console.log("🔄 レポート位置は完全一致のため除外:", {
-				lat: reportLocation.latitude.toFixed(8),
-				lon: reportLocation.longitude.toFixed(8),
-			});
 		}
 	}
 
-	console.log("🗺️ 最終的な位置情報リスト:", {
+	console.log("🗺️ Leaflet地図で表示する位置情報:", {
 		totalLocations: allLocations.length,
 		locations: allLocations.map((loc, index) => ({
-			index,
-			lat: loc.latitude.toFixed(6),
-			lon: loc.longitude.toFixed(6),
-			recordedAt: loc.recordedAt,
+			index: index + 1,
+			lat: loc.latitude.toFixed(8),
+			lon: loc.longitude.toFixed(8),
+			time: loc.recordedAt,
 		})),
 	});
 
-	// 位置情報がある場合は全てのポイントを表示
-	if (allLocations.length > 0) {
-		// 中心点を計算
-		const avgLat =
-			allLocations.reduce((sum, loc) => sum + loc.latitude, 0) /
-			allLocations.length;
-		const avgLon =
-			allLocations.reduce((sum, loc) => sum + loc.longitude, 0) /
-			allLocations.length;
-		centerLat = avgLat;
-		centerLon = avgLon;
+	const defaultCenter: [number, number] = [35.6812, 139.7671];
+	const center: [number, number] =
+		allLocations.length > 0
+			? [allLocations[0].latitude, allLocations[0].longitude]
+			: defaultCenter;
 
-		// 境界を計算（全ての点を含む範囲）
-		const latitudes = allLocations.map((loc) => loc.latitude);
-		const longitudes = allLocations.map((loc) => loc.longitude);
-		const minLat = Math.min(...latitudes);
-		const maxLat = Math.max(...latitudes);
-		const minLon = Math.min(...longitudes);
-		const maxLon = Math.max(...longitudes);
-
-		// 境界にマージンを追加（単一点の場合は固定マージン）
-		const latMargin =
-			allLocations.length > 1 ? Math.max(0.005, (maxLat - minLat) * 0.2) : 0.01;
-		const lonMargin =
-			allLocations.length > 1 ? Math.max(0.005, (maxLon - minLon) * 0.2) : 0.01;
-
-		// 全てのマーカーを追加
-		const markerParams = allLocations
-			.map((loc, index) => {
-				const marker = `marker=${loc.latitude},${loc.longitude}`;
-				console.log(`🎯 マーカー${index + 1}:`, {
-					lat: loc.latitude.toFixed(8),
-					lon: loc.longitude.toFixed(8),
-					markerString: marker,
-				});
-				return marker;
-			})
-			.join("&");
-
-		mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${minLon - lonMargin},${minLat - latMargin},${maxLon + lonMargin},${maxLat + latMargin}&layer=mapnik&${markerParams}`;
-
-		console.log("🗺️ 地図URL生成完了:", {
-			totalLocations: allLocations.length,
-			centerLat: centerLat.toFixed(6),
-			centerLon: centerLon.toFixed(6),
-			bounds: {
-				minLat: (minLat - latMargin).toFixed(6),
-				maxLat: (maxLat + latMargin).toFixed(6),
-				minLon: (minLon - lonMargin).toFixed(6),
-				maxLon: (maxLon + lonMargin).toFixed(6),
-			},
-			markerCount: allLocations.length,
-			fullMapUrl: mapUrl,
-		});
-
-		// OpenStreetMapのマーカー制限を確認
-		if (allLocations.length > 50) {
-			console.warn(
-				"⚠️ マーカー数が多すぎます（50個超）。OpenStreetMapが正常に表示されない可能性があります:",
-				allLocations.length,
-			);
-		} else if (allLocations.length === 1) {
-			console.log(
-				"ℹ️ マーカーが1個のみです。複数の位置情報が記録されているか確認してください。",
-			);
-		}
-
-		// OpenStreetMapのマーカー制限を確認
-		if (allLocations.length > 10) {
-			console.warn(
-				"⚠️ マーカー数が多いため、一部が表示されない可能性があります:",
-				allLocations.length,
-			);
-		}
-	} else {
-		// デフォルト位置（東京）を表示
-		console.log("🗺️ デフォルト位置を表示:", { centerLat, centerLon });
-		mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${centerLon - 0.01},${centerLat - 0.01},${centerLon + 0.01},${centerLat + 0.01}&layer=mapnik&marker=${centerLat},${centerLon}`;
-	}
-
-	const locationCount = allLocations.length;
-
+	// Leaflet地図を直接使用（トップ画面と同じ方式）
 	return (
-		<div className="relative w-full h-48 md:h-64 rounded-lg overflow-hidden border bg-muted">
-			<iframe
-				src={mapUrl}
-				width="100%"
-				height="100%"
-				style={{ border: 0 }}
-				title={`報告場所: ${report.address}`}
+		<div className="relative w-full h-48 md:h-64 rounded-lg overflow-hidden border">
+			<MapContainer
+				center={center}
+				zoom={13}
 				className="w-full h-full"
-			/>
-			<div className="absolute top-2 left-2 bg-background/90 backdrop-blur-sm rounded-md px-2 py-1 text-xs font-medium border">
+				style={{ minHeight: "192px" }}
+			>
+				<TileLayer
+					attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+					url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+				/>
+
+				{/* 全ての位置にマーカーを配置 */}
+				{allLocations.map((location, index) => {
+					const isFirst = index === 0;
+					const isLast = index === allLocations.length - 1;
+
+					return (
+						<Marker
+							key={`${location.latitude}-${location.longitude}-${index}`}
+							position={[location.latitude, location.longitude]}
+						>
+							<Popup>
+								<div className="text-sm">
+									<p className="font-semibold">
+										{isFirst
+											? "🟢 開始地点"
+											: isLast
+												? "🔴 終了地点"
+												: `🔵 中間地点 ${index}`}
+									</p>
+									<p className="text-xs text-gray-600 mt-1">
+										{new Date(location.recordedAt).toLocaleString()}
+									</p>
+									<p className="text-xs text-gray-500">
+										{location.latitude.toFixed(6)},{" "}
+										{location.longitude.toFixed(6)}
+									</p>
+									<p className="text-xs mt-1">{report.address}</p>
+								</div>
+							</Popup>
+						</Marker>
+					);
+				})}
+
+				{/* 境界を自動調整 */}
+				<MapBounds locations={allLocations} />
+			</MapContainer>
+
+			{/* 地図上の情報表示 */}
+			<div className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm rounded-md px-2 py-1 text-xs font-medium border z-[1000]">
 				<MapPin className="inline h-3 w-3 mr-1" />
-				{locationCount > 1
-					? `${report.address} (移動経路 ${locationCount}地点)`
+				{allLocations.length > 1
+					? `${report.address} (${allLocations.length}地点の移動経路)`
 					: report.address}
 			</div>
-			{locationCount > 1 && (
-				<div className="absolute bottom-2 right-2 bg-primary/90 text-primary-foreground backdrop-blur-sm rounded-md px-2 py-1 text-xs font-medium border">
-					🚶 移動経路を記録 ({locationCount}点)
-				</div>
-			)}
-			{/* デバッグ情報を表示（開発時のみ） */}
-			{typeof window !== "undefined" &&
-				window.location.hostname === "localhost" && (
-					<div className="absolute top-2 right-2 bg-red-500/90 text-white backdrop-blur-sm rounded-md px-2 py-1 text-xs font-medium border">
-						Debug: {locationCount}点
-					</div>
-				)}
 		</div>
 	);
 }
