@@ -1,24 +1,18 @@
 import { AlertTriangle, ArrowLeft, Home } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useGetSheltersId } from "@/api/generated/team2API";
+import { ProductionRedirectBanner } from "@/components/production-redirect-banner";
 import { ShelterDashboard } from "@/components/shelter-dashboard";
 import { ShelterOverview } from "@/components/shelter-overview";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-	checkProductionApiAndRedirect,
-	getInitialShelterId,
-} from "@/lib/environment-utils";
+import { Toaster } from "@/components/ui/sonner";
+import { getInitialShelterId } from "@/lib/environment-utils";
 
 export default function HomePage() {
 	const [selectedShelter, setSelectedShelter] = useState<string | null>(
 		getInitialShelterId,
 	);
-
-	// 初回マウント時に本番APIの疎通確認を実行
-	useEffect(() => {
-		checkProductionApiAndRedirect();
-	}, []);
 
 	// 選択された避難所の存在確認
 	const {
@@ -81,6 +75,7 @@ export default function HomePage() {
 
 		return (
 			<main className="min-h-screen bg-background">
+				<ProductionRedirectBanner />
 				{!isLocal && (
 					<div className="p-4 border-b bg-card">
 						<Button
@@ -94,6 +89,7 @@ export default function HomePage() {
 					</div>
 				)}
 				<ShelterDashboard shelterId={selectedShelter} />
+				<Toaster />
 			</main>
 		);
 	}
@@ -102,6 +98,7 @@ export default function HomePage() {
 	return (
 		<main className="min-h-screen bg-background">
 			<ShelterOverview onShelterSelect={setSelectedShelter} />
+			<Toaster />
 		</main>
 	);
 }
