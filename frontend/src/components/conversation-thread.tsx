@@ -196,8 +196,17 @@ function ReportLocationMap({
 
 		// 全てのマーカーを追加
 		const markerParams = allLocations
-			.map((loc) => `marker=${loc.latitude},${loc.longitude}`)
+			.map((loc, index) => {
+				const marker = `marker=${loc.latitude},${loc.longitude}`;
+				console.log(`🎯 マーカー${index + 1}:`, {
+					lat: loc.latitude.toFixed(8),
+					lon: loc.longitude.toFixed(8),
+					markerString: marker,
+				});
+				return marker;
+			})
 			.join("&");
+
 		mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${minLon - lonMargin},${minLat - latMargin},${maxLon + lonMargin},${maxLat + latMargin}&layer=mapnik&${markerParams}`;
 
 		console.log("🗺️ 地図URL生成完了:", {
@@ -211,8 +220,20 @@ function ReportLocationMap({
 				maxLon: (maxLon + lonMargin).toFixed(6),
 			},
 			markerCount: allLocations.length,
-			mapUrl: mapUrl.substring(0, 100) + "...",
+			fullMapUrl: mapUrl,
 		});
+
+		// OpenStreetMapのマーカー制限を確認
+		if (allLocations.length > 50) {
+			console.warn(
+				"⚠️ マーカー数が多すぎます（50個超）。OpenStreetMapが正常に表示されない可能性があります:",
+				allLocations.length,
+			);
+		} else if (allLocations.length === 1) {
+			console.log(
+				"ℹ️ マーカーが1個のみです。複数の位置情報が記録されているか確認してください。",
+			);
+		}
 
 		// OpenStreetMapのマーカー制限を確認
 		if (allLocations.length > 10) {
