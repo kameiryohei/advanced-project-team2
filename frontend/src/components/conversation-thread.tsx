@@ -78,14 +78,54 @@ function ReportLocationMap({
 	let mapUrl = "";
 
 	// すべての利用可能な位置情報を収集
-	const allLocations = [];
+	const allLocations: Array<{
+		latitude: number;
+		longitude: number;
+		recordedAt: string;
+	}> = [];
 
 	// 投稿詳細の移動経路がある場合は全て追加
 	if (postDetail?.locationTrack && postDetail.locationTrack.length > 0) {
-		allLocations.push(...postDetail.locationTrack);
-		console.log("🗺️ 投稿詳細の移動経路 (LocationTrack):", {
-			locationCount: postDetail.locationTrack.length,
-			allLocations: postDetail.locationTrack,
+		console.log("🗺️ LocationTrack データを処理中:", {
+			totalPoints: postDetail.locationTrack.length,
+			firstPoint: postDetail.locationTrack[0],
+			lastPoint: postDetail.locationTrack[postDetail.locationTrack.length - 1],
+			allPoints: postDetail.locationTrack.map((p, i) => ({
+				index: i,
+				lat: p.latitude.toFixed(6),
+				lon: p.longitude.toFixed(6),
+				time: p.recordedAt,
+			})),
+		});
+
+		// 最小限の重複チェック（精度: 約0.1メートル） - 少しでも位置が違えば別の点として扱う
+		for (const track of postDetail.locationTrack) {
+			const isDuplicate = allLocations.some(
+				(loc) =>
+					Math.abs(loc.latitude - track.latitude) < 0.000001 && // 約0.11m精度（極めて厳しい）
+					Math.abs(loc.longitude - track.longitude) < 0.000001,
+			);
+
+			if (!isDuplicate) {
+				allLocations.push(track);
+				console.log("✅ 新しい位置を追加:", {
+					lat: track.latitude.toFixed(8),
+					lon: track.longitude.toFixed(8),
+					time: track.recordedAt,
+				});
+			} else {
+				console.log("🔄 完全一致の位置を除外:", {
+					lat: track.latitude.toFixed(8),
+					lon: track.longitude.toFixed(8),
+					time: track.recordedAt,
+				});
+			}
+		}
+
+		console.log("🗺️ LocationTrack処理完了:", {
+			originalCount: postDetail.locationTrack.length,
+			uniqueCount: allLocations.length,
+			removedDuplicates: postDetail.locationTrack.length - allLocations.length,
 		});
 	}
 
@@ -97,18 +137,36 @@ function ReportLocationMap({
 			recordedAt: new Date().toISOString(),
 		};
 
-		// 既存の位置情報と重複していないかチェック
+		// 最小限の重複チェック（精度: 約0.1メートル） - 少しでも位置が違えば別の点として扱う
 		const isDuplicate = allLocations.some(
 			(loc) =>
-				Math.abs(loc.latitude - reportLocation.latitude) < 0.0001 &&
-				Math.abs(loc.longitude - reportLocation.longitude) < 0.0001,
+				Math.abs(loc.latitude - reportLocation.latitude) < 0.000001 &&
+				Math.abs(loc.longitude - reportLocation.longitude) < 0.000001,
 		);
 
 		if (!isDuplicate) {
 			allLocations.push(reportLocation);
+			console.log("✅ レポート位置情報を追加:", {
+				lat: reportLocation.latitude.toFixed(8),
+				lon: reportLocation.longitude.toFixed(8),
+			});
+		} else {
+			console.log("🔄 レポート位置は完全一致のため除外:", {
+				lat: reportLocation.latitude.toFixed(8),
+				lon: reportLocation.longitude.toFixed(8),
+			});
 		}
-		console.log("🗺️ レポート位置情報を追加:", reportLocation);
 	}
+
+	console.log("🗺️ 最終的な位置情報リスト:", {
+		totalLocations: allLocations.length,
+		locations: allLocations.map((loc, index) => ({
+			index,
+			lat: loc.latitude.toFixed(6),
+			lon: loc.longitude.toFixed(6),
+			recordedAt: loc.recordedAt,
+		})),
+	});
 
 	// 位置情報がある場合は全てのポイントを表示
 	if (allLocations.length > 0) {
@@ -142,12 +200,27 @@ function ReportLocationMap({
 			.join("&");
 		mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${minLon - lonMargin},${minLat - latMargin},${maxLon + lonMargin},${maxLat + latMargin}&layer=mapnik&${markerParams}`;
 
-		console.log("🗺️ 全ての位置情報をピン表示:", {
+		console.log("🗺️ 地図URL生成完了:", {
 			totalLocations: allLocations.length,
-			centerLat,
-			centerLon,
-			bounds: { minLat, maxLat, minLon, maxLon },
+			centerLat: centerLat.toFixed(6),
+			centerLon: centerLon.toFixed(6),
+			bounds: {
+				minLat: (minLat - latMargin).toFixed(6),
+				maxLat: (maxLat + latMargin).toFixed(6),
+				minLon: (minLon - lonMargin).toFixed(6),
+				maxLon: (maxLon + lonMargin).toFixed(6),
+			},
+			markerCount: allLocations.length,
+			mapUrl: mapUrl.substring(0, 100) + "...",
 		});
+
+		// OpenStreetMapのマーカー制限を確認
+		if (allLocations.length > 10) {
+			console.warn(
+				"⚠️ マーカー数が多いため、一部が表示されない可能性があります:",
+				allLocations.length,
+			);
+		}
 	} else {
 		// デフォルト位置（東京）を表示
 		console.log("🗺️ デフォルト位置を表示:", { centerLat, centerLon });
@@ -174,9 +247,16 @@ function ReportLocationMap({
 			</div>
 			{locationCount > 1 && (
 				<div className="absolute bottom-2 right-2 bg-primary/90 text-primary-foreground backdrop-blur-sm rounded-md px-2 py-1 text-xs font-medium border">
-					🚶 移動経路を記録
+					🚶 移動経路を記録 ({locationCount}点)
 				</div>
 			)}
+			{/* デバッグ情報を表示（開発時のみ） */}
+			{typeof window !== "undefined" &&
+				window.location.hostname === "localhost" && (
+					<div className="absolute top-2 right-2 bg-red-500/90 text-white backdrop-blur-sm rounded-md px-2 py-1 text-xs font-medium border">
+						Debug: {locationCount}点
+					</div>
+				)}
 		</div>
 	);
 }
