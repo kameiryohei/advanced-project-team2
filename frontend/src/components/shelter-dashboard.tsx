@@ -6,7 +6,9 @@ import {
 	FileText,
 	MapPin,
 	MessageSquare,
+	User,
 	Users,
+	Video,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
@@ -69,6 +71,7 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 	const [showReportForm, setShowReportForm] = useState(false);
 	const [reports, setReports] = useState<Report[]>([]);
 	const [messages, setMessages] = useState<{ [key: string]: Message[] }>({});
+	const [expandedId, setExpandedId] = useState<string | null>(null);
 
 	// APIクライアントの初期化
 	const currentShelterId = Number.parseInt(shelterId || "1", 10);
@@ -178,14 +181,14 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 	return (
 		<div className="container mx-auto p-4 space-y-6">
 			{/* Header */}
-			<div className="flex items-center justify-between">
+			<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
 				<div className="flex items-center gap-4">
 					<AlertTriangle className="h-8 w-8 text-primary" />
 					<div>
-						<h1 className="text-3xl font-bold text-foreground">
+						<h1 className="text-2xl sm:text-3xl font-bold text-foreground">
 							{shelterName}
 						</h1>
-						<p className="text-muted-foreground flex items-center gap-2">
+						<p className="text-sm sm:text-base text-muted-foreground flex items-center gap-2">
 							<MapPin className="h-4 w-4" />
 							{shelterAddress}
 						</p>
@@ -200,7 +203,7 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 			</div>
 
 			{/* Status Cards */}
-			<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 						<CardTitle className="text-sm font-medium">避難所数</CardTitle>
@@ -286,59 +289,178 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 							isLoadingPostDetail={isLoadingPostDetail}
 						/>
 					) : (
-						<Card>
-							<CardContent className="p-0">
-								<div className="overflow-x-auto">
-									<table className="w-full">
-										<thead className="bg-muted">
-											<tr>
-												<th className="text-left p-4 font-medium">日時</th>
-												<th className="text-left p-4 font-medium">住所</th>
-												<th className="text-left p-4 font-medium">詳細</th>
-												<th className="text-left p-4 font-medium">
-													ステータス
-												</th>
-												<th className="text-left p-4 font-medium">報告者</th>
-												<th className="text-left p-4 font-medium">添付</th>
-												<th className="text-left p-4 font-medium">対応者</th>
-											</tr>
-										</thead>
-										<tbody>
-											{reports.length === 0 ? (
+						<>
+							{/* Desktop Table View */}
+							<Card className="hidden md:block">
+								<CardContent className="p-0">
+									<div className="overflow-x-auto">
+										<table className="w-full">
+											<thead className="bg-muted">
 												<tr>
-													<td
-														colSpan={7}
-														className="p-8 text-center text-muted-foreground"
-													>
-														報告データがありません
-													</td>
+													<th className="text-left p-4 font-medium">日時</th>
+													<th className="text-left p-4 font-medium">住所</th>
+													<th className="text-left p-4 font-medium">詳細</th>
+													<th className="text-left p-4 font-medium">
+														ステータス
+													</th>
+													<th className="text-left p-4 font-medium">報告者</th>
+													<th className="text-left p-4 font-medium">添付</th>
+													<th className="text-left p-4 font-medium">対応者</th>
 												</tr>
-											) : (
-												reports.map((report) => (
-													<tr
-														key={report.id}
-														className="border-b hover:bg-muted/50 cursor-pointer"
-														onClick={() => setSelectedReport(report.id)}
-													>
-														<td className="p-4">{report.datetime}</td>
-														<td className="p-4">{report.address}</td>
-														<td className="p-4">{report.details}</td>
-														<td className="p-4">
-															<Badge className={getStatusColor(report.status)}>
-																{report.status || "-"}
-															</Badge>
+											</thead>
+											<tbody>
+												{reports.length === 0 ? (
+													<tr>
+														<td
+															colSpan={7}
+															className="p-8 text-center text-muted-foreground"
+														>
+															報告データがありません
 														</td>
-														<td className="p-4">{report.reporter}</td>
-														<td className="p-4">{report.attachment || "-"}</td>
-														<td className="p-4">{report.responder}</td>
 													</tr>
-												))
-											)}
-										</tbody>
-									</table>
-								</div>
-							</CardContent>
-						</Card>
+												) : (
+													reports.map((report) => (
+														<tr
+															key={report.id}
+															className="border-b hover:bg-muted/50 cursor-pointer"
+															onClick={() => setSelectedReport(report.id)}
+														>
+															<td className="p-4">{report.datetime}</td>
+															<td className="p-4">{report.address}</td>
+															<td className="p-4">{report.details}</td>
+															<td className="p-4">
+																<Badge
+																	className={getStatusColor(report.status)}
+																>
+																	{report.status || "-"}
+																</Badge>
+															</td>
+															<td className="p-4">{report.reporter}</td>
+															<td className="p-4">
+																{report.attachment || "-"}
+															</td>
+															<td className="p-4">{report.responder}</td>
+														</tr>
+													))
+												)}
+											</tbody>
+										</table>
+									</div>
+								</CardContent>
+							</Card>
+
+							{/* Mobile Card View */}
+							<div className="md:hidden space-y-3">
+								{reports.length === 0 ? (
+									<Card>
+										<CardContent className="p-8 text-center text-muted-foreground">
+											報告データがありません
+										</CardContent>
+									</Card>
+								) : (
+									reports.map((report) => (
+										<Card
+											key={report.id}
+											className="cursor-pointer hover:bg-muted/50 transition-all duration-200"
+											onClick={() => {
+												if (expandedId === report.id) {
+													// 既に展開されている場合は全画面表示
+													setSelectedReport(report.id);
+												} else {
+													// 詳細を展開
+													setExpandedId(report.id);
+												}
+											}}
+										>
+											<CardContent className="p-4">
+												{/* 常時表示される概要 */}
+												<div className="space-y-2">
+													<div className="flex items-start justify-between gap-2">
+														<div className="flex-1 min-w-0">
+															<div className="flex items-center gap-2 flex-wrap">
+																<Badge
+																	className={getStatusColor(report.status)}
+																>
+																	{report.status || "-"}
+																</Badge>
+																<span className="text-xs text-muted-foreground">
+																	{report.datetime}
+																</span>
+															</div>
+															<p className="text-sm font-medium mt-1 truncate">
+																{report.address}
+															</p>
+															<p className="text-sm text-muted-foreground line-clamp-2">
+																{report.details}
+															</p>
+														</div>
+														<Button
+															variant="ghost"
+															size="sm"
+															className="shrink-0"
+															onClick={(e) => {
+																e.stopPropagation();
+																setExpandedId(
+																	expandedId === report.id ? null : report.id,
+																);
+															}}
+														>
+															{expandedId === report.id ? "▲" : "▼"}
+														</Button>
+													</div>
+
+													{/* 展開時のみ表示される詳細 */}
+													{expandedId === report.id && (
+														<div className="mt-3 pt-3 border-t space-y-2 text-sm">
+															<div className="flex items-center gap-2">
+																<User className="h-4 w-4 text-muted-foreground" />
+																<span className="text-muted-foreground">
+																	報告者:
+																</span>
+																<span className="font-medium">
+																	{report.reporter}
+																</span>
+															</div>
+															{report.attachment && (
+																<div className="flex items-center gap-2">
+																	<Video className="h-4 w-4 text-muted-foreground" />
+																	<span className="text-muted-foreground">
+																		添付:
+																	</span>
+																	<span className="font-medium">
+																		{report.attachment}
+																	</span>
+																</div>
+															)}
+															<div className="flex items-center gap-2">
+																<User className="h-4 w-4 text-muted-foreground" />
+																<span className="text-muted-foreground">
+																	対応者:
+																</span>
+																<span className="font-medium">
+																	{report.responder || "-"}
+																</span>
+															</div>
+															<Button
+																variant="outline"
+																size="sm"
+																className="w-full mt-2"
+																onClick={(e) => {
+																	e.stopPropagation();
+																	setSelectedReport(report.id);
+																}}
+															>
+																詳細を確認
+															</Button>
+														</div>
+													)}
+												</div>
+											</CardContent>
+										</Card>
+									))
+								)}
+							</div>
+						</>
 					)}
 					{/* Report Map - ここに追加 */}
 					{!selectedReport && (
