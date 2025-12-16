@@ -61,6 +61,23 @@ CREATE TABLE IF NOT EXISTS comments (
     is_synced INTEGER NOT NULL DEFAULT 0
 );
 
+-- 同期メタデータテーブル（同期処理の追跡用）
+CREATE TABLE IF NOT EXISTS sync_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sync_type TEXT NOT NULL, -- 'full', 'incremental', 'manual'
+    status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'in_progress', 'completed', 'failed'
+    started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at DATETIME,
+    posts_synced INTEGER DEFAULT 0,
+    comments_synced INTEGER DEFAULT 0,
+    location_tracks_synced INTEGER DEFAULT 0,
+    error_message TEXT,
+    target_url TEXT -- 同期先のURL
+);
+
+CREATE INDEX IF NOT EXISTS idx_sync_logs_status ON sync_logs(status);
+CREATE INDEX IF NOT EXISTS idx_sync_logs_started_at ON sync_logs(started_at);
+
 CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);
 CREATE INDEX IF NOT EXISTS idx_post_location_tracks_post_id ON post_location_tracks(post_id);
 
