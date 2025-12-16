@@ -98,7 +98,7 @@ function ReportLocationMap({
 	const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${longitude - 0.01},${latitude - 0.01},${longitude + 0.01},${latitude + 0.01}&layer=mapnik&marker=${latitude},${longitude}`;
 
 	return (
-		<div className="relative w-full h-64 rounded-lg overflow-hidden border bg-muted">
+		<div className="relative w-full h-48 md:h-64 rounded-lg overflow-hidden border bg-muted">
 			<iframe
 				src={mapUrl}
 				width="100%"
@@ -257,21 +257,21 @@ export function ConversationThread({
 	};
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-6 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0">
 			{/* Header with Report Summary */}
 			<Card>
 				<CardHeader>
-					<div className="flex items-center justify-between">
-						<div className="flex items-center gap-3">
+					<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+						<div className="flex flex-col sm:flex-row sm:items-center gap-3">
 							<Button variant="outline" size="sm" onClick={onBack}>
 								<ArrowLeft className="h-4 w-4 mr-2" />
 								一覧に戻る
 							</Button>
 							<div>
-								<CardTitle className="text-xl">
+								<CardTitle className="text-lg sm:text-xl">
 									報告詳細 - #{report.id}
 								</CardTitle>
-								<p className="text-sm text-muted-foreground mt-1">
+								<p className="text-xs sm:text-sm text-muted-foreground mt-1">
 									{report.datetime} | {report.address}
 								</p>
 							</div>
@@ -343,7 +343,7 @@ export function ConversationThread({
 												<>
 													<video
 														controls
-														className="w-full max-h-[680px] object-cover"
+														className="w-full max-h-[400px] md:max-h-[680px] object-cover"
 														aria-label="報告に添付された動画"
 													>
 														<source src={media.url} type={media.mediaType} />
@@ -364,7 +364,7 @@ export function ConversationThread({
 													<img
 														src={media.url}
 														alt={media.fileName || "添付画像"}
-														className="w-full max-h-[480px] object-contain"
+														className="w-full max-h-[300px] md:max-h-[480px] object-contain"
 													/>
 													<div className="p-3 bg-background border-t text-sm text-muted-foreground">
 														🖼️ {media.fileName || "画像ファイル"}
@@ -391,7 +391,7 @@ export function ConversationThread({
 									<div className="border rounded-lg overflow-hidden bg-muted/50">
 										<video
 											controls
-											className="w-full max-h-80 object-cover"
+											className="w-full max-h-64 md:max-h-80 object-cover"
 											aria-label="報告に添付された動画"
 										>
 											<source
