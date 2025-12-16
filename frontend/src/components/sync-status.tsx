@@ -1,32 +1,19 @@
-"use client";
-
 import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
 	Wifi,
 	WifiOff,
 	RefreshCw,
 	Clock,
 	Database,
-	CloudUpload,
 	AlertCircle,
-	CheckCircle,
 } from "lucide-react";
-import {
-	syncService,
-	type DbSyncStats,
-	type DbSyncResult,
-} from "@/lib/sync-service";
+import { syncService, type DbSyncStats } from "@/lib/sync-service";
 
 export function SyncStatus() {
 	const [syncStatus, setSyncStatus] = useState(syncService.getSyncStatus());
 	const [lastUpdate, setLastUpdate] = useState<string>("");
 	const [dbSyncStats, setDbSyncStats] = useState<DbSyncStats | null>(null);
-	const [isDbSyncing, setIsDbSyncing] = useState(false);
-	const [lastDbSyncResult, setLastDbSyncResult] = useState<DbSyncResult | null>(
-		null,
-	);
 
 	useEffect(() => {
 		const updateStatus = () => {
@@ -41,11 +28,11 @@ export function SyncStatus() {
 			setDbSyncStats(stats);
 		};
 
-		// Update status every 5 seconds
+		// Update status every 30 seconds
 		const interval = setInterval(() => {
 			updateStatus();
 			fetchDbSyncStats();
-		}, 5000);
+		}, 30000);
 
 		// 初回取得
 		updateStatus();
@@ -58,28 +45,6 @@ export function SyncStatus() {
 
 		return () => clearInterval(interval);
 	}, []);
-
-	const handleForceSync = async () => {
-		await syncService.forcSync();
-		setSyncStatus(syncService.getSyncStatus());
-	};
-
-	// DB同期を手動で実行
-	const handleDbSync = async () => {
-		setIsDbSyncing(true);
-		setLastDbSyncResult(null);
-
-		try {
-			const result = await syncService.syncDbToProduction();
-			setLastDbSyncResult(result);
-
-			// 同期後に統計を再取得
-			const stats = await syncService.getDbSyncStats();
-			setDbSyncStats(stats);
-		} finally {
-			setIsDbSyncing(false);
-		}
-	};
 
 	return (
 		<div className="flex flex-wrap items-center gap-3">
@@ -118,75 +83,23 @@ export function SyncStatus() {
 			)}
 
 			{/* Sync in Progress */}
-			{(syncStatus.syncInProgress || isDbSyncing) && (
+			{syncStatus.syncInProgress && (
 				<Badge className="flex items-center gap-1 bg-info text-info-foreground">
 					<RefreshCw className="h-3 w-3 animate-spin" />
-					<span>{isDbSyncing ? "DB同期中..." : "同期中..."}</span>
+					<span>同期中...</span>
 				</Badge>
 			)}
 
-			{/* Last DB Sync Result */}
-			{lastDbSyncResult && (
+			{/* Auto Sync Info */}
+			{!syncStatus.isOnline && dbSyncStats && dbSyncStats.totalUnsynced > 0 && (
 				<Badge
 					variant="outline"
-					className={`flex items-center gap-1 ${
-						lastDbSyncResult.success
-							? "border-green-500 text-green-600"
-							: "border-red-500 text-red-600"
-					}`}
+					className="flex items-center gap-1 text-muted-foreground"
 				>
-					{lastDbSyncResult.success ? (
-						<>
-							<CheckCircle className="h-3 w-3" />
-							<span>
-								同期完了 (
-								{lastDbSyncResult.postsSynced +
-									lastDbSyncResult.commentsSynced +
-									lastDbSyncResult.locationTracksSynced}
-								件)
-							</span>
-						</>
-					) : (
-						<>
-							<AlertCircle className="h-3 w-3" />
-							<span>同期失敗</span>
-						</>
-					)}
+					<AlertCircle className="h-3 w-3" />
+					<span>オンライン復帰時に自動同期されます</span>
 				</Badge>
 			)}
-
-			{/* DB Sync Button */}
-			<Button
-				variant="outline"
-				size="sm"
-				onClick={handleDbSync}
-				disabled={
-					!syncStatus.isOnline ||
-					isDbSyncing ||
-					dbSyncStats?.totalUnsynced === 0
-				}
-				className="flex items-center gap-1 bg-transparent"
-				title="ローカルDBのデータを本番環境に同期"
-			>
-				<CloudUpload
-					className={`h-3 w-3 ${isDbSyncing ? "animate-pulse" : ""}`}
-				/>
-				<span>本番同期</span>
-			</Button>
-
-			{/* Manual Sync Button */}
-			<Button
-				variant="outline"
-				size="sm"
-				onClick={handleForceSync}
-				disabled={!syncStatus.isOnline || syncStatus.syncInProgress}
-				className="flex items-center gap-1 bg-transparent"
-			>
-				<RefreshCw
-					className={`h-3 w-3 ${syncStatus.syncInProgress ? "animate-spin" : ""}`}
-				/>
-				<span>同期</span>
-			</Button>
 
 			{/* Last Update */}
 			{lastUpdate && (
