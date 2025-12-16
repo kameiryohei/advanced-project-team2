@@ -485,7 +485,7 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 						<div className="space-y-2">
 							<Label htmlFor={datetimeId} className="flex items-center gap-2">
 								<Calendar className="h-4 w-4" />
-								発生日時
+								報告日時
 							</Label>
 							<Input
 								id={datetimeId}
