@@ -124,13 +124,13 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 		// ローカルストレージからメッセージのみ読み込み（reportsはAPIから取得するため除外）
 		const storedMessages = syncService.loadFromLocal(`messages_${shelterId}`);
 
-		if (storedMessages) {
-			setMessages(storedMessages);
+		if (storedMessages && typeof storedMessages === "object") {
+			setMessages(storedMessages as { [key: string]: Message[] });
 		}
 
 		syncService.onSyncComplete((syncData) => {
-			if (syncData.messages) {
-				setMessages(syncData.messages);
+			if (syncData.messages && typeof syncData.messages === "object") {
+				setMessages(syncData.messages as { [key: string]: Message[] });
 			}
 		});
 	}, [shelterId]);

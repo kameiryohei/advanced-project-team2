@@ -75,6 +75,167 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/api/sync/status": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * 同期ステータスを取得
+		 * @description 未同期データの統計情報を取得します。
+		 */
+		get: {
+			parameters: {
+				query?: never;
+				header?: never;
+				path?: never;
+				cookie?: never;
+			};
+			requestBody?: never;
+			responses: {
+				/** @description 同期ステータスを取得しました */
+				200: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["SyncStatusResponse"];
+					};
+				};
+				/** @description サーバーエラー */
+				500: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ErrorResponse"];
+					};
+				};
+			};
+		};
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/sync/execute": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * 同期を実行
+		 * @description ローカルDBの未同期データを本番DBに同期します。
+		 */
+		post: {
+			parameters: {
+				query?: never;
+				header?: never;
+				path?: never;
+				cookie?: never;
+			};
+			requestBody: {
+				content: {
+					"application/json": components["schemas"]["SyncExecuteRequest"];
+				};
+			};
+			responses: {
+				/** @description 同期を実行しました */
+				200: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["SyncExecuteResponse"];
+					};
+				};
+				/** @description リクエストが不正です */
+				400: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ErrorResponse"];
+					};
+				};
+				/** @description サーバーエラー */
+				500: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ErrorResponse"];
+					};
+				};
+			};
+		};
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/sync/receive": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * 同期データを受信
+		 * @description 他の環境からの同期データを受信してDBに保存します。
+		 */
+		post: {
+			parameters: {
+				query?: never;
+				header?: never;
+				path?: never;
+				cookie?: never;
+			};
+			requestBody: {
+				content: {
+					"application/json": components["schemas"]["SyncReceiveRequest"];
+				};
+			};
+			responses: {
+				/** @description 同期データを受信・保存しました */
+				200: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["SyncReceiveResponse"];
+					};
+				};
+				/** @description サーバーエラー */
+				500: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ErrorResponse"];
+					};
+				};
+			};
+		};
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/posts": {
 		parameters: {
 			query?: never;
@@ -759,6 +920,114 @@ export interface components {
 		};
 		ErrorResponse: {
 			error: string;
+		};
+		/** @description 同期ステータスのレスポンス */
+		SyncStatusResponse: {
+			/** @description 未同期の投稿数 */
+			unsyncedPosts: number;
+			/** @description 未同期のコメント数 */
+			unsyncedComments: number;
+			/** @description 未同期の位置情報トラック数 */
+			unsyncedLocationTracks: number;
+			/** @description 未同期データの合計数 */
+			totalUnsynced: number;
+			/**
+			 * Format: date-time
+			 * @description 最後に同期した日時
+			 */
+			lastSyncAt?: string | null;
+			/** @description 最後の同期ステータス */
+			lastSyncStatus?: string | null;
+		};
+		/** @description 同期実行リクエスト */
+		SyncExecuteRequest: {
+			/** @description 同期先のAPI URL */
+			targetUrl: string;
+		};
+		/** @description 同期実行レスポンス */
+		SyncExecuteResponse: {
+			/** @description 同期が成功したかどうか */
+			success: boolean;
+			/** @description 同期した投稿数 */
+			postsSynced: number;
+			/** @description 同期したコメント数 */
+			commentsSynced: number;
+			/** @description 同期した位置情報トラック数 */
+			locationTracksSynced: number;
+			/** @description 追加のメッセージ */
+			message?: string | null;
+			/** @description エラーメッセージ（失敗時） */
+			error?: string | null;
+		};
+		/** @description 同期データ受信リクエスト */
+		SyncReceiveRequest: {
+			/** @description 同期する投稿データ */
+			posts: components["schemas"]["UnsyncedPost"][];
+			/** @description 同期するコメントデータ */
+			comments: components["schemas"]["UnsyncedComment"][];
+			/** @description 同期する位置情報トラックデータ */
+			locationTracks: components["schemas"]["UnsyncedLocationTrack"][];
+			/** @description 同期元のURL */
+			sourceUrl?: string | null;
+		};
+		/** @description 同期データ受信レスポンス */
+		SyncReceiveResponse: {
+			/** @description 受信・保存が成功したかどうか */
+			success: boolean;
+			/** @description 保存した投稿数 */
+			postsSynced: number;
+			/** @description 保存したコメント数 */
+			commentsSynced: number;
+			/** @description 保存した位置情報トラック数 */
+			locationTracksSynced: number;
+			/** @description エラーメッセージ（失敗時） */
+			error?: string | null;
+		};
+		/** @description 未同期の投稿データ */
+		UnsyncedPost: {
+			id: string;
+			author_name: string;
+			shelter_id: number;
+			content?: string | null;
+			/** Format: float */
+			latitude: number;
+			/** Format: float */
+			longitude: number;
+			/** Format: date-time */
+			posted_at: string;
+			/** Format: date-time */
+			created_at: string;
+			/** Format: date-time */
+			updated_at: string;
+			is_free_chat: number;
+			status?: string | null;
+		};
+		/** @description 未同期のコメントデータ */
+		UnsyncedComment: {
+			id: string;
+			post_id: string;
+			author_name: string;
+			content: string;
+			status: string;
+			/** Format: date-time */
+			created_at: string;
+			/** Format: date-time */
+			updated_at: string;
+		};
+		/** @description 未同期の位置情報トラックデータ */
+		UnsyncedLocationTrack: {
+			id: string;
+			post_id: string;
+			/** Format: date-time */
+			recorded_at: string;
+			/** Format: float */
+			latitude: number;
+			/** Format: float */
+			longitude: number;
+			/** Format: date-time */
+			created_at: string;
+			/** Format: date-time */
+			updated_at: string;
 		};
 	};
 	responses: never;

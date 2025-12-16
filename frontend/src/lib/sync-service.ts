@@ -1,17 +1,31 @@
+import { getApiSyncStatus, postApiSyncExecute } from "@/api/generated/team2API";
+import type {
+	SyncStatusResponse,
+	SyncExecuteResponse,
+} from "@/api/generated/model";
+import { toast } from "sonner";
+
+// 既存のローカルストレージデータ型
 interface SyncData {
-	reports: any[];
-	messages: { [key: string]: any[] };
-	shelterStatus: any[];
+	reports: unknown[];
+	messages: { [key: string]: unknown[] };
+	shelterStatus: unknown[];
 	lastSync: string;
 }
 
 interface PendingOperation {
 	id: string;
 	type: "create_report" | "add_message" | "update_status";
-	data: any;
+	data: unknown;
 	timestamp: string;
 	shelterId?: string;
 }
+
+// DB同期統計型（Orval生成型を再エクスポート）
+export type DbSyncStats = SyncStatusResponse;
+
+// DB同期結果型（Orval生成型を再エクスポート）
+export type DbSyncResult = SyncExecuteResponse;
 
 class SyncService {
 	private static instance: SyncService;
@@ -37,7 +51,7 @@ class SyncService {
 	}
 
 	// Save data to localStorage for offline access
-	saveToLocal(key: string, data: any): void {
+	saveToLocal(key: string, data: unknown): void {
 		try {
 			localStorage.setItem(
 				`disaster_system_${key}`,
@@ -52,7 +66,7 @@ class SyncService {
 	}
 
 	// Load data from localStorage
-	loadFromLocal(key: string): any {
+	loadFromLocal(key: string): unknown {
 		try {
 			const stored = localStorage.getItem(`disaster_system_${key}`);
 			if (stored) {
@@ -99,6 +113,8 @@ class SyncService {
 		console.log("[v0] Connection restored - starting sync");
 		this.isOnline = true;
 		await this.syncPendingOperations();
+		// オンライン復帰時にDB同期も試行
+		await this.autoSyncOnOnline();
 	}
 
 	// Handle offline event
@@ -147,14 +163,23 @@ class SyncService {
 
 	// Notify all registered callbacks
 	private notifySyncComplete(): void {
+		const reports = this.loadFromLocal("reports");
+		const messages = this.loadFromLocal("messages");
+		const shelterStatus = this.loadFromLocal("shelter_status");
+
 		const syncData: SyncData = {
-			reports: this.loadFromLocal("reports") || [],
-			messages: this.loadFromLocal("messages") || {},
-			shelterStatus: this.loadFromLocal("shelter_status") || [],
+			reports: Array.isArray(reports) ? reports : [],
+			messages:
+				messages && typeof messages === "object" && !Array.isArray(messages)
+					? (messages as { [key: string]: unknown[] })
+					: {},
+			shelterStatus: Array.isArray(shelterStatus) ? shelterStatus : [],
 			lastSync: new Date().toISOString(),
 		};
 
-		this.syncCallbacks.forEach((callback) => callback(syncData));
+		for (const callback of this.syncCallbacks) {
+			callback(syncData);
+		}
 	}
 
 	// Get current sync status
@@ -164,11 +189,12 @@ class SyncService {
 		syncInProgress: boolean;
 		lastSync: string | null;
 	} {
+		const lastSync = this.loadFromLocal("last_sync");
 		return {
 			isOnline: this.isOnline,
 			pendingOperations: this.pendingOperations.length,
 			syncInProgress: this.syncInProgress,
-			lastSync: this.loadFromLocal("last_sync"),
+			lastSync: typeof lastSync === "string" ? lastSync : null,
 		};
 	}
 
@@ -176,6 +202,139 @@ class SyncService {
 	async forcSync(): Promise<void> {
 		if (this.isOnline) {
 			await this.syncPendingOperations();
+		}
+	}
+
+	// ==================== DB同期機能 ====================
+
+	/**
+	 * バックエンドDBの同期ステータスを取得
+	 */
+	async getDbSyncStats(): Promise<DbSyncStats | null> {
+		try {
+			const response = await getApiSyncStatus();
+			return response;
+		} catch (error) {
+			console.error("[SyncService] DB同期ステータス取得エラー:", error);
+			return null;
+		}
+	}
+
+	/**
+	 * 本番APIが利用可能かチェック
+	 */
+	async checkProductionApiAvailable(): Promise<boolean> {
+		const productionApiUrl = import.meta.env.VITE_PRODUCTION_API_URL;
+		if (!productionApiUrl) {
+			return false;
+		}
+
+		try {
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+			const response = await fetch(productionApiUrl, {
+				method: "GET",
+				signal: controller.signal,
+			});
+
+			clearTimeout(timeoutId);
+			return response.ok;
+		} catch {
+			return false;
+		}
+	}
+
+	/**
+	 * DBデータを本番環境に同期
+	 */
+	async syncDbToProduction(): Promise<DbSyncResult> {
+		const productionApiUrl = import.meta.env.VITE_PRODUCTION_API_URL;
+
+		if (!productionApiUrl) {
+			const errorMsg = "本番API URLが設定されていません";
+			toast.error("同期失敗", {
+				description: errorMsg,
+			});
+			return {
+				success: false,
+				postsSynced: 0,
+				commentsSynced: 0,
+				locationTracksSynced: 0,
+				error: errorMsg,
+			};
+		}
+
+		console.log("[SyncService] 🔄 DB同期開始...");
+		toast.loading("同期中...", {
+			id: "db-sync-toast",
+			description: "データを本番環境に同期しています",
+		});
+
+		try {
+			const result = await postApiSyncExecute({ targetUrl: productionApiUrl });
+
+			console.log("[SyncService] ✅ DB同期完了:", result);
+
+			if (result.success) {
+				const totalSynced =
+					result.postsSynced +
+					result.commentsSynced +
+					result.locationTracksSynced;
+
+				toast.success("同期完了", {
+					id: "db-sync-toast",
+					description: `${totalSynced}件のデータを同期しました（投稿: ${result.postsSynced}, コメント: ${result.commentsSynced}, 位置情報: ${result.locationTracksSynced}）`,
+				});
+			} else {
+				toast.error("同期失敗", {
+					id: "db-sync-toast",
+					description: result.error || "同期中にエラーが発生しました",
+				});
+			}
+
+			// 最終同期時刻を保存
+			this.saveToLocal("last_db_sync", new Date().toISOString());
+
+			return result;
+		} catch (error) {
+			const message = error instanceof Error ? error.message : "Unknown error";
+			console.error("[SyncService] ❌ DB同期エラー:", error);
+
+			toast.error("同期エラー", {
+				id: "db-sync-toast",
+				description: message,
+			});
+
+			return {
+				success: false,
+				postsSynced: 0,
+				commentsSynced: 0,
+				locationTracksSynced: 0,
+				error: message,
+			};
+		}
+	}
+
+	/**
+	 * オンライン復帰時に自動的にDB同期を実行
+	 */
+	async autoSyncOnOnline(): Promise<void> {
+		console.log("[SyncService] 🌐 オンライン復帰を検知、自動同期を試行...");
+
+		// 本番APIが利用可能かチェック
+		const isProductionAvailable = await this.checkProductionApiAvailable();
+		if (!isProductionAvailable) {
+			console.log("[SyncService] ℹ️ 本番APIが利用不可、同期をスキップ");
+			return;
+		}
+
+		// DB同期を実行
+		const result = await this.syncDbToProduction();
+		if (result.success) {
+			console.log(
+				`[SyncService] ✅ 自動同期完了: ${result.postsSynced}件の投稿, ${result.commentsSynced}件のコメント, ${result.locationTracksSynced}件の位置情報`,
+			);
 		}
 	}
 }

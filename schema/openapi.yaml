@@ -9,6 +9,8 @@ tags:
     description: 投稿やコメントを作成・取得するAPI
   - name: ジオコーディング
     description: 位置情報に関連する補助API
+  - name: 同期
+    description: ローカルDBと本番DBのデータ同期API
 servers:
   - url: http://localhost:8787
 paths:
@@ -58,6 +60,86 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
+  # 同期API
+  /api/sync/status:
+    get:
+      tags:
+        - 同期
+      summary: 同期ステータスを取得
+      description: 未同期データの統計情報を取得します。
+      responses:
+        "200":
+          description: 同期ステータスを取得しました
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncStatusResponse"
+        "500":
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/sync/execute:
+    post:
+      tags:
+        - 同期
+      summary: 同期を実行
+      description: ローカルDBの未同期データを本番DBに同期します。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncExecuteRequest"
+      responses:
+        "200":
+          description: 同期を実行しました
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncExecuteResponse"
+        "400":
+          description: リクエストが不正です
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/sync/receive:
+    post:
+      tags:
+        - 同期
+      summary: 同期データを受信
+      description: 他の環境からの同期データを受信してDBに保存します。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncReceiveRequest"
+      responses:
+        "200":
+          description: 同期データを受信・保存しました
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncReceiveResponse"
+        "500":
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /posts:
     post:
       tags:
@@ -823,3 +905,234 @@ components:
           type: string
       required:
         - error
+
+    # 同期関連のスキーマ
+    SyncStatusResponse:
+      type: object
+      description: 同期ステータスのレスポンス
+      properties:
+        unsyncedPosts:
+          type: integer
+          description: 未同期の投稿数
+        unsyncedComments:
+          type: integer
+          description: 未同期のコメント数
+        unsyncedLocationTracks:
+          type: integer
+          description: 未同期の位置情報トラック数
+        totalUnsynced:
+          type: integer
+          description: 未同期データの合計数
+        lastSyncAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 最後に同期した日時
+        lastSyncStatus:
+          type: string
+          nullable: true
+          description: 最後の同期ステータス
+      required:
+        - unsyncedPosts
+        - unsyncedComments
+        - unsyncedLocationTracks
+        - totalUnsynced
+
+    SyncExecuteRequest:
+      type: object
+      description: 同期実行リクエスト
+      properties:
+        targetUrl:
+          type: string
+          description: 同期先のAPI URL
+      required:
+        - targetUrl
+
+    SyncExecuteResponse:
+      type: object
+      description: 同期実行レスポンス
+      properties:
+        success:
+          type: boolean
+          description: 同期が成功したかどうか
+        postsSynced:
+          type: integer
+          description: 同期した投稿数
+        commentsSynced:
+          type: integer
+          description: 同期したコメント数
+        locationTracksSynced:
+          type: integer
+          description: 同期した位置情報トラック数
+        message:
+          type: string
+          nullable: true
+          description: 追加のメッセージ
+        error:
+          type: string
+          nullable: true
+          description: エラーメッセージ（失敗時）
+      required:
+        - success
+        - postsSynced
+        - commentsSynced
+        - locationTracksSynced
+
+    SyncReceiveRequest:
+      type: object
+      description: 同期データ受信リクエスト
+      properties:
+        posts:
+          type: array
+          description: 同期する投稿データ
+          items:
+            $ref: "#/components/schemas/UnsyncedPost"
+        comments:
+          type: array
+          description: 同期するコメントデータ
+          items:
+            $ref: "#/components/schemas/UnsyncedComment"
+        locationTracks:
+          type: array
+          description: 同期する位置情報トラックデータ
+          items:
+            $ref: "#/components/schemas/UnsyncedLocationTrack"
+        sourceUrl:
+          type: string
+          nullable: true
+          description: 同期元のURL
+      required:
+        - posts
+        - comments
+        - locationTracks
+
+    SyncReceiveResponse:
+      type: object
+      description: 同期データ受信レスポンス
+      properties:
+        success:
+          type: boolean
+          description: 受信・保存が成功したかどうか
+        postsSynced:
+          type: integer
+          description: 保存した投稿数
+        commentsSynced:
+          type: integer
+          description: 保存したコメント数
+        locationTracksSynced:
+          type: integer
+          description: 保存した位置情報トラック数
+        error:
+          type: string
+          nullable: true
+          description: エラーメッセージ（失敗時）
+      required:
+        - success
+        - postsSynced
+        - commentsSynced
+        - locationTracksSynced
+
+    UnsyncedPost:
+      type: object
+      description: 未同期の投稿データ
+      properties:
+        id:
+          type: string
+        author_name:
+          type: string
+        shelter_id:
+          type: integer
+        content:
+          type: string
+          nullable: true
+        latitude:
+          type: number
+          format: float
+        longitude:
+          type: number
+          format: float
+        posted_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        is_free_chat:
+          type: integer
+        status:
+          type: string
+          nullable: true
+      required:
+        - id
+        - author_name
+        - shelter_id
+        - latitude
+        - longitude
+        - posted_at
+        - created_at
+        - updated_at
+        - is_free_chat
+
+    UnsyncedComment:
+      type: object
+      description: 未同期のコメントデータ
+      properties:
+        id:
+          type: string
+        post_id:
+          type: string
+        author_name:
+          type: string
+        content:
+          type: string
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - post_id
+        - author_name
+        - content
+        - status
+        - created_at
+        - updated_at
+
+    UnsyncedLocationTrack:
+      type: object
+      description: 未同期の位置情報トラックデータ
+      properties:
+        id:
+          type: string
+        post_id:
+          type: string
+        recorded_at:
+          type: string
+          format: date-time
+        latitude:
+          type: number
+          format: float
+        longitude:
+          type: number
+          format: float
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - post_id
+        - recorded_at
+        - latitude
+        - longitude
+        - created_at
+        - updated_at

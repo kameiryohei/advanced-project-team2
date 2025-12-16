@@ -8,9 +8,11 @@ import {
 	reverseGeocoderRepository,
 	shelterRepository,
 	signedVideoRepository,
+	syncRepository,
 	videoRepository,
 } from "./repositories";
 import type { ShelterPosts } from "./repositories/shelterRepository";
+import type { SyncReceiveData } from "./repositories/syncRepository";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -683,6 +685,236 @@ app.post("/posts/:id/comments", async (c) => {
 			error: message,
 		};
 		return c.json(errorResponse, 500);
+	}
+});
+
+// ==================== 同期API ====================
+
+// 同期ステータスを取得（未同期データの統計）
+app.get("/api/sync/status", async (c) => {
+	const db = dbConnect(c.env);
+
+	try {
+		const stats = await syncRepository.syncRepository.getSyncStats(db);
+		return c.json(stats);
+	} catch (error) {
+		console.error("Failed to get sync status", error);
+		const message = error instanceof Error ? error.message : "Unknown error";
+		return c.json({ error: message }, 500);
+	}
+});
+
+// 同期を実行（ローカル → 本番）
+app.post("/api/sync/execute", async (c) => {
+	const db = dbConnect(c.env);
+
+	try {
+		const reqBody = await c.req.json<{ targetUrl: string }>();
+		const targetUrl = reqBody.targetUrl;
+
+		if (!targetUrl) {
+			return c.json({ error: "targetUrl is required" }, 400);
+		}
+
+		console.log("🔄 同期開始:", targetUrl);
+
+		// 同期ログを作成
+		const logId = await syncRepository.syncRepository.createSyncLog(
+			db,
+			"manual",
+			targetUrl,
+		);
+
+		// 未同期データを取得
+		const [posts, comments, locationTracks] = await Promise.all([
+			syncRepository.syncRepository.fetchUnsyncedPosts(db),
+			syncRepository.syncRepository.fetchUnsyncedComments(db),
+			syncRepository.syncRepository.fetchUnsyncedLocationTracks(db),
+		]);
+
+		console.log(
+			`📊 未同期データ: posts=${posts.length}, comments=${comments.length}, tracks=${locationTracks.length}`,
+		);
+
+		if (
+			posts.length === 0 &&
+			comments.length === 0 &&
+			locationTracks.length === 0
+		) {
+			await syncRepository.syncRepository.completeSyncLog(db, logId, 0, 0, 0);
+			return c.json({
+				success: true,
+				message: "同期するデータがありません",
+				postsSynced: 0,
+				commentsSynced: 0,
+				locationTracksSynced: 0,
+			});
+		}
+
+		// 本番APIにデータを送信
+		const syncData: SyncReceiveData = {
+			posts,
+			comments,
+			locationTracks,
+			sourceUrl: c.req.url,
+		};
+
+		console.log("📤 同期データ準備完了");
+		console.log(`📤 送信先URL: ${targetUrl}/api/sync/receive`);
+		console.log(`📤 データサイズ: ${JSON.stringify(syncData).length} bytes`);
+
+		let response: Response;
+		try {
+			console.log("📤 本番APIへリクエスト送信中...");
+			response = await fetch(`${targetUrl}/api/sync/receive`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify(syncData),
+			});
+			console.log(`📥 本番APIからレスポンス受信: status=${response.status}`);
+		} catch (fetchError) {
+			console.error("❌ 本番APIへのfetchエラー:", fetchError);
+			const fetchErrorMsg =
+				fetchError instanceof Error ? fetchError.message : String(fetchError);
+			await syncRepository.syncRepository.failSyncLog(
+				db,
+				logId,
+				`fetch失敗: ${fetchErrorMsg}`,
+			);
+			return c.json({ error: `本番APIへの接続エラー: ${fetchErrorMsg}` }, 500);
+		}
+
+		if (!response.ok) {
+			console.error(`❌ 本番APIエラー応答: status=${response.status}`);
+			const errorText = await response.text();
+			console.error(`❌ エラー詳細: ${errorText}`);
+			await syncRepository.syncRepository.failSyncLog(
+				db,
+				logId,
+				`本番API応答エラー: ${response.status} ${errorText}`,
+			);
+			return c.json(
+				{ error: `同期先APIエラー: ${response.status}`, details: errorText },
+				500,
+			);
+		}
+
+		console.log("📥 本番APIレスポンスのJSON解析中...");
+		let result: any;
+		try {
+			result = await response.json();
+			console.log("📥 レスポンスJSON解析成功:", result);
+		} catch (jsonError) {
+			console.error("❌ レスポンスJSON解析エラー:", jsonError);
+			const jsonErrorMsg =
+				jsonError instanceof Error ? jsonError.message : String(jsonError);
+			await syncRepository.syncRepository.failSyncLog(
+				db,
+				logId,
+				`レスポンスJSON解析失敗: ${jsonErrorMsg}`,
+			);
+			return c.json({ error: `レスポンス解析エラー: ${jsonErrorMsg}` }, 500);
+		}
+
+		// 同期成功したデータのフラグを更新
+		const postIds = posts.map((p) => p.id);
+		const commentIds = comments.map((c) => c.id);
+		const trackIds = locationTracks.map((t) => t.id);
+
+		console.log(`🔄 ローカルDBの is_synced フラグ更新中...`);
+		console.log(`  - 投稿ID: ${postIds.join(", ")}`);
+		console.log(`  - コメントID: ${commentIds.join(", ")}`);
+		console.log(`  - 位置情報ID: ${trackIds.join(", ")}`);
+
+		try {
+			await Promise.all([
+				syncRepository.syncRepository.markPostsAsSynced(db, postIds),
+				syncRepository.syncRepository.markCommentsAsSynced(db, commentIds),
+				syncRepository.syncRepository.markLocationTracksAsSynced(db, trackIds),
+			]);
+			console.log("✅ is_synced フラグ更新完了");
+		} catch (markError) {
+			console.error("❌ is_synced フラグ更新エラー:", markError);
+			throw markError;
+		}
+
+		// 同期ログを完了に更新
+		console.log("🔄 同期ログ更新中...");
+		await syncRepository.syncRepository.completeSyncLog(
+			db,
+			logId,
+			posts.length,
+			comments.length,
+			locationTracks.length,
+		);
+		console.log("✅ 同期ログ更新完了");
+
+		console.log("✅ 同期完了");
+
+		return c.json({
+			success: true,
+			postsSynced: posts.length,
+			commentsSynced: comments.length,
+			locationTracksSynced: locationTracks.length,
+			remoteResult: result,
+		});
+	} catch (error) {
+		console.error("❌❌❌ Sync execution failed ❌❌❌");
+		console.error("エラーオブジェクト:", error);
+		console.error("エラー型:", typeof error);
+		if (error instanceof Error) {
+			console.error("エラーメッセージ:", error.message);
+			console.error("スタックトレース:", error.stack);
+		}
+		const message = error instanceof Error ? error.message : "Unknown error";
+		return c.json({ error: message }, 500);
+	}
+});
+
+// 同期データを受信（本番側で使用）
+app.post("/api/sync/receive", async (c) => {
+	const db = dbConnect(c.env);
+
+	try {
+		const syncData = await c.req.json<SyncReceiveData>();
+
+		console.log(
+			`📥 同期データ受信: posts=${syncData.posts?.length || 0}, comments=${syncData.comments?.length || 0}, tracks=${syncData.locationTracks?.length || 0}`,
+		);
+
+		const result = await syncRepository.syncRepository.receiveAndInsertSyncData(
+			db,
+			syncData,
+		);
+
+		if (!result.success) {
+			return c.json(
+				{
+					error: result.errorMessage,
+					postsSynced: result.postsSynced,
+					commentsSynced: result.commentsSynced,
+					locationTracksSynced: result.locationTracksSynced,
+				},
+				500,
+			);
+		}
+
+		console.log(
+			`✅ 同期データ挿入完了: posts=${result.postsSynced}, comments=${result.commentsSynced}, tracks=${result.locationTracksSynced}`,
+		);
+
+		return c.json({
+			success: true,
+			postsSynced: result.postsSynced,
+			commentsSynced: result.commentsSynced,
+			locationTracksSynced: result.locationTracksSynced,
+		});
+	} catch (error) {
+		console.error("Sync receive failed", error);
+		const message = error instanceof Error ? error.message : "Unknown error";
+		return c.json({ error: message }, 500);
 	}
 });
 
