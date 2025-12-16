@@ -72,30 +72,59 @@ function ReportLocationMap({
 	report: Report;
 	postDetail?: PostDetailResponse;
 }) {
-	// 投稿詳細のlocationTrackがある場合は最初の位置を使用、なければreportの座標、最後にデフォルト座標
-	let latitude = 35.6812; // デフォルト座標（東京）
-	let longitude = 139.7671;
+	// 投稿詳細のlocationTrackがある場合は複数のピンを表示、なければreportの座標、最後にデフォルト座標
+	let centerLat = 35.6812; // デフォルト座標（東京）
+	let centerLon = 139.7671;
+	let mapUrl = "";
 
 	if (postDetail?.locationTrack && postDetail.locationTrack.length > 0) {
-		// locationTrackの最初の位置を使用（録画開始位置）
-		latitude = postDetail.locationTrack[0].latitude;
-		longitude = postDetail.locationTrack[0].longitude;
-		console.log("🗺️ 投稿詳細の位置情報 (LocationTrack):", {
-			latitude,
-			longitude,
-			locationTrackCount: postDetail.locationTrack.length,
-			allLocationData: postDetail.locationTrack,
+		const locations = postDetail.locationTrack;
+
+		// 中心点を計算
+		const avgLat =
+			locations.reduce((sum, loc) => sum + loc.latitude, 0) / locations.length;
+		const avgLon =
+			locations.reduce((sum, loc) => sum + loc.longitude, 0) / locations.length;
+		centerLat = avgLat;
+		centerLon = avgLon;
+
+		// 境界を計算（全ての点を含む範囲）
+		const latitudes = locations.map((loc) => loc.latitude);
+		const longitudes = locations.map((loc) => loc.longitude);
+		const minLat = Math.min(...latitudes);
+		const maxLat = Math.max(...latitudes);
+		const minLon = Math.min(...longitudes);
+		const maxLon = Math.max(...longitudes);
+
+		// 境界にマージンを追加
+		const latMargin = Math.max(0.005, (maxLat - minLat) * 0.2);
+		const lonMargin = Math.max(0.005, (maxLon - minLon) * 0.2);
+
+		// 複数のマーカーを追加
+		const markerParams = locations
+			.map((loc) => `marker=${loc.latitude},${loc.longitude}`)
+			.join("&");
+		mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${minLon - lonMargin},${minLat - latMargin},${maxLon + lonMargin},${maxLat + latMargin}&layer=mapnik&${markerParams}`;
+
+		console.log("🗺️ 投稿詳細の移動経路 (LocationTrack):", {
+			locationCount: locations.length,
+			centerLat,
+			centerLon,
+			bounds: { minLat, maxLat, minLon, maxLon },
+			allLocations: locations,
 		});
 	} else if (report.latitude && report.longitude) {
 		// reportオブジェクトに座標がある場合はそれを使用
-		latitude = report.latitude;
-		longitude = report.longitude;
-		console.log("🗺️ 投稿詳細の位置情報 (Report):", { latitude, longitude });
+		centerLat = report.latitude;
+		centerLon = report.longitude;
+		mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${centerLon - 0.01},${centerLat - 0.01},${centerLon + 0.01},${centerLat + 0.01}&layer=mapnik&marker=${centerLat},${centerLon}`;
+		console.log("🗺️ 投稿詳細の位置情報 (Report):", { centerLat, centerLon });
 	} else {
-		console.log("🗺️ 投稿詳細の位置情報 (デフォルト):", { latitude, longitude });
+		console.log("🗺️ 投稿詳細の位置情報 (デフォルト):", { centerLat, centerLon });
+		mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${centerLon - 0.01},${centerLat - 0.01},${centerLon + 0.01},${centerLat + 0.01}&layer=mapnik&marker=${centerLat},${centerLon}`;
 	}
 
-	const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${longitude - 0.01},${latitude - 0.01},${longitude + 0.01},${latitude + 0.01}&layer=mapnik&marker=${latitude},${longitude}`;
+	const locationCount = postDetail?.locationTrack?.length || 1;
 
 	return (
 		<div className="relative w-full h-48 md:h-64 rounded-lg overflow-hidden border bg-muted">
@@ -109,8 +138,15 @@ function ReportLocationMap({
 			/>
 			<div className="absolute top-2 left-2 bg-background/90 backdrop-blur-sm rounded-md px-2 py-1 text-xs font-medium border">
 				<MapPin className="inline h-3 w-3 mr-1" />
-				{report.address}
+				{locationCount > 1
+					? `${report.address} (移動経路 ${locationCount}地点)`
+					: report.address}
 			</div>
+			{locationCount > 1 && (
+				<div className="absolute bottom-2 right-2 bg-primary/90 text-primary-foreground backdrop-blur-sm rounded-md px-2 py-1 text-xs font-medium border">
+					🚶 移動経路を記録
+				</div>
+			)}
 		</div>
 	);
 }

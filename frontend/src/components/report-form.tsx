@@ -92,6 +92,16 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 	} | null>(null);
 	const [gpsStatus, setGpsStatus] = useState("位置情報を取得中...");
 
+	// 動画撮影時の移動経路追跡
+	const [locationTracks, setLocationTracks] = useState<
+		Array<{
+			recordedAt: string;
+			latitude: number;
+			longitude: number;
+		}>
+	>([]);
+	const locationTrackingIntervalRef = useRef<number | null>(null);
+
 	const [videoPreview, setVideoPreview] = useState<string | null>(null);
 	const [recordingDuration, setRecordingDuration] = useState(0);
 	const videoRef = useRef<HTMLVideoElement>(null);
@@ -189,6 +199,7 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 	const handleClearLocation = () => {
 		setCoords(null);
 		setGpsStatus("");
+		setLocationTracks([]); // 移動経路もクリア
 		// 住所フィールドもクリア
 		setFormData((prev) => ({ ...prev, address: "" }));
 	};
@@ -205,15 +216,18 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 				content: formData.details,
 				occurredAt: new Date(formData.datetime).toISOString(),
 				status: formData.priority,
-				locationTrack: coords
-					? [
-							{
-								recordedAt: new Date().toISOString(),
-								latitude: coords.latitude,
-								longitude: coords.longitude,
-							},
-						]
-					: [],
+				locationTrack:
+					locationTracks.length > 0
+						? locationTracks
+						: coords
+							? [
+									{
+										recordedAt: new Date().toISOString(),
+										latitude: coords.latitude,
+										longitude: coords.longitude,
+									},
+								]
+							: [],
 				media: formData.attachment
 					? [
 							{
@@ -424,6 +438,17 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 					clearInterval(recordingIntervalRef.current);
 					recordingIntervalRef.current = null;
 				}
+
+				// Clear location tracking
+				if (locationTrackingIntervalRef.current) {
+					clearInterval(locationTrackingIntervalRef.current);
+					locationTrackingIntervalRef.current = null;
+				}
+
+				console.log(
+					"📍 録画終了 - 総移動経路ポイント数:",
+					locationTracks.length,
+				);
 				stopCamera();
 			};
 
@@ -431,10 +456,53 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 			recorder.start();
 			setIsRecording(true);
 
+			// Reset location tracks for new recording
+			setLocationTracks([]);
+
 			// Start recording duration timer
 			recordingIntervalRef.current = setInterval(() => {
 				setRecordingDuration((prev) => prev + 1);
 			}, 1000);
+
+			// Start location tracking every 5 seconds during recording
+			const trackLocation = () => {
+				if (navigator.geolocation) {
+					navigator.geolocation.getCurrentPosition(
+						(position) => {
+							const { latitude, longitude } = position.coords;
+							const locationPoint = {
+								recordedAt: new Date().toISOString(),
+								latitude,
+								longitude,
+							};
+							setLocationTracks((prev) => {
+								const newTracks = [...prev, locationPoint];
+								console.log(
+									"🚶 移動経路追跡:",
+									locationPoint,
+									"総ポイント数:",
+									newTracks.length,
+								);
+								return newTracks;
+							});
+						},
+						(error) => {
+							console.warn("位置情報取得エラー:", error);
+						},
+						{
+							enableHighAccuracy: true,
+							timeout: 10000,
+							maximumAge: 0,
+						},
+					);
+				}
+			};
+
+			// 録画開始時に即座に1回位置情報を取得
+			trackLocation();
+
+			// 5秒間隔で位置情報を追跡
+			locationTrackingIntervalRef.current = setInterval(trackLocation, 5000);
 		}
 	};
 
@@ -442,6 +510,12 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 		if (mediaRecorder && isRecording) {
 			mediaRecorder.stop();
 			setIsRecording(false);
+		}
+
+		// Stop location tracking
+		if (locationTrackingIntervalRef.current) {
+			clearInterval(locationTrackingIntervalRef.current);
+			locationTrackingIntervalRef.current = null;
 		}
 	};
 
@@ -526,14 +600,37 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 									位置情報
 								</Label>
 								<div className="space-y-3">
-									{coords ? (
+									{coords || locationTracks.length > 0 ? (
 										<div className="border rounded-lg p-4 bg-muted/50 space-y-2">
 											<div className="flex items-center justify-between">
 												<div className="text-sm">
 													<p className="font-medium">
-														現在位置が取得されました
+														{locationTracks.length > 0
+															? `移動経路が記録されました（${locationTracks.length}地点）`
+															: "現在位置が取得されました"}
 													</p>
-													<p className="text-muted-foreground">{gpsStatus}</p>
+													<p className="text-muted-foreground">
+														{locationTracks.length > 0
+															? `動画撮影中の移動経路を記録`
+															: gpsStatus}
+													</p>
+													{locationTracks.length > 0 && (
+														<div className="mt-2 pt-2 border-t text-xs text-muted-foreground">
+															<p>
+																開始:{" "}
+																{new Date(
+																	locationTracks[0]?.recordedAt,
+																).toLocaleTimeString()}
+															</p>
+															<p>
+																終了:{" "}
+																{new Date(
+																	locationTracks[locationTracks.length - 1]
+																		?.recordedAt,
+																).toLocaleTimeString()}
+															</p>
+														</div>
+													)}
 												</div>
 												<Button
 													type="button"
