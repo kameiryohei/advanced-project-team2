@@ -1,11 +1,13 @@
 import {
 	AlertTriangle,
 	CheckCircle,
+	Clock,
 	MapPin,
 	Users,
 	Wifi,
 	WifiOff,
 } from "lucide-react";
+import { useState } from "react";
 import { useGetShelters } from "@/api/generated/team2API";
 import { ShelterMap } from "@/components/shelter-map";
 import { SyncStatus } from "@/components/sync-status";
@@ -32,6 +34,8 @@ interface ShelterOverviewProps {
 }
 
 export function ShelterOverview({ onShelterSelect }: ShelterOverviewProps) {
+	const [expandedId, setExpandedId] = useState<string | null>(null);
+
 	// APIから避難所一覧を取得
 	const { data: sheltersData, isLoading, error } = useGetShelters();
 
@@ -90,18 +94,18 @@ export function ShelterOverview({ onShelterSelect }: ShelterOverviewProps) {
 		<div className="min-h-screen bg-background p-6">
 			<div className="max-w-7xl mx-auto space-y-6">
 				{/* Header */}
-				<div className="flex items-center justify-between">
-					<div className="text-center space-y-2">
-						<h1 className="text-3xl font-bold text-foreground">災害対策本部</h1>
-						<p className="text-muted-foreground">
-							避難所管理システム - 中央集約サーバー
-						</p>
+				<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+					<div className="space-y-2">
+						<h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+							災害対策本部
+						</h1>
+						<p className="text-sm sm:text-base text-muted-foreground"></p>
 					</div>
 					<SyncStatus />
 				</div>
 
 				{/* Summary Cards */}
-				<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 					<Card>
 						<CardContent className="p-4">
 							<div className="flex items-center space-x-2">
@@ -180,8 +184,8 @@ export function ShelterOverview({ onShelterSelect }: ShelterOverviewProps) {
 					</CardContent>
 				</Card>
 
-				{/* Shelters Table */}
-				<Card>
+				{/* Shelters Table - Desktop View */}
+				<Card className="hidden md:block">
 					<CardHeader>
 						<CardTitle className="flex items-center space-x-2">
 							<MapPin className="h-5 w-5" />
@@ -282,6 +286,157 @@ export function ShelterOverview({ onShelterSelect }: ShelterOverviewProps) {
 						</div>
 					</CardContent>
 				</Card>
+
+				{/* Mobile Card View */}
+				<div className="md:hidden space-y-4">
+					<div className="flex items-center space-x-2 px-2">
+						<MapPin className="h-5 w-5" />
+						<h2 className="text-lg font-semibold">避難所一覧</h2>
+					</div>
+					<div className="space-y-3">
+						{shelters.map((shelter) => (
+							<Card
+								key={shelter.id}
+								className="cursor-pointer hover:bg-muted/50 transition-all duration-200"
+								onClick={() => {
+									if (expandedId === shelter.id) {
+										// 既に展開されている場合は詳細画面へ遷移
+										onShelterSelect(shelter.id);
+									} else {
+										// 詳細を展開
+										setExpandedId(shelter.id);
+									}
+								}}
+							>
+								<CardContent className="p-4">
+									{/* 常時表示される概要 */}
+									<div className="space-y-2">
+										<div className="flex items-start justify-between gap-2">
+											<div className="flex-1 min-w-0">
+												<h3 className="font-semibold text-base mb-1">
+													{shelter.name}
+												</h3>
+												<p className="text-sm text-muted-foreground truncate mb-2">
+													{shelter.address}
+												</p>
+												<div className="flex items-center gap-2 flex-wrap">
+													<Badge
+														variant={
+															shelter.status === "online"
+																? "default"
+																: "destructive"
+														}
+														className={
+															shelter.status === "online"
+																? "bg-success text-success-foreground"
+																: "bg-danger text-danger-foreground"
+														}
+													>
+														{shelter.status === "online" ? (
+															<>
+																<Wifi className="h-3 w-3 mr-1" />
+																オンライン
+															</>
+														) : (
+															<>
+																<WifiOff className="h-3 w-3 mr-1" />
+																オフライン
+															</>
+														)}
+													</Badge>
+													{shelter.urgentReports > 0 && (
+														<Badge
+															variant="destructive"
+															className="bg-danger text-danger-foreground"
+														>
+															緊急: {shelter.urgentReports}
+														</Badge>
+													)}
+												</div>
+											</div>
+											<Button
+												variant="ghost"
+												size="sm"
+												className="shrink-0"
+												onClick={(e) => {
+													e.stopPropagation();
+													setExpandedId(
+														expandedId === shelter.id ? null : shelter.id,
+													);
+												}}
+											>
+												{expandedId === shelter.id ? "▲" : "▼"}
+											</Button>
+										</div>
+
+										{/* 展開時のみ表示される詳細 */}
+										{expandedId === shelter.id && (
+											<div className="mt-3 pt-3 border-t space-y-2 text-sm">
+												<div className="flex items-center gap-2">
+													<MapPin className="h-4 w-4 text-muted-foreground" />
+													<span className="text-muted-foreground">距離:</span>
+													<span className="font-medium">
+														{shelter.distance === "-"
+															? "距離未計算"
+															: shelter.distance}
+													</span>
+												</div>
+												<div className="flex items-center gap-2">
+													<Users className="h-4 w-4 text-muted-foreground" />
+													<span className="text-muted-foreground">
+														推定人数:
+													</span>
+													<span className="font-medium">
+														{shelter.population}人
+													</span>
+												</div>
+												<div className="flex items-center gap-2">
+													<AlertTriangle className="h-4 w-4 text-muted-foreground" />
+													<span className="text-muted-foreground">
+														報告状況:
+													</span>
+													<div className="flex gap-2">
+														<Badge variant="outline" className="text-xs">
+															報告: {shelter.activeReports}
+														</Badge>
+														{shelter.urgentReports > 0 && (
+															<Badge
+																variant="destructive"
+																className="text-xs bg-danger text-danger-foreground"
+															>
+																緊急: {shelter.urgentReports}
+															</Badge>
+														)}
+													</div>
+												</div>
+												<div className="flex items-center gap-2">
+													<Clock className="h-4 w-4 text-muted-foreground" />
+													<span className="text-muted-foreground">
+														最終更新:
+													</span>
+													<span className="font-medium text-xs">
+														{shelter.lastUpdate}
+													</span>
+												</div>
+												<Button
+													variant="outline"
+													size="sm"
+													className="w-full mt-2"
+													onClick={(e) => {
+														e.stopPropagation();
+														onShelterSelect(shelter.id);
+													}}
+												>
+													詳細を確認
+												</Button>
+											</div>
+										)}
+									</div>
+								</CardContent>
+							</Card>
+						))}
+					</div>
+				</div>
 
 				{/* Quick Actions */}
 				<div className="flex flex-wrap gap-4 justify-center">
