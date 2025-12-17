@@ -220,7 +220,7 @@ function ReportLocationMap({
 										{location.latitude.toFixed(6)},{" "}
 										{location.longitude.toFixed(6)}
 									</p>
-									<p className="text-xs mt-1">{report.address}</p>
+									{/* <p className="text-xs mt-1">{report.address}</p> */}
 								</div>
 							</Popup>
 						</Marker>
