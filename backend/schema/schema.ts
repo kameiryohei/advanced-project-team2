@@ -236,6 +236,61 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/api/sync/logs": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * 同期ログ一覧を取得
+		 * @description 過去の同期履歴をページネーション形式で取得します。
+		 */
+		get: {
+			parameters: {
+				query?: {
+					/** @description Filter by shelter ID (optional) */
+					shelterId?: number;
+					/** @description Page number (starts from 1, default is 1) */
+					page?: number;
+					/** @description Number of items per page (default is 10) */
+					limit?: number;
+				};
+				header?: never;
+				path?: never;
+				cookie?: never;
+			};
+			requestBody?: never;
+			responses: {
+				/** @description 同期ログ一覧を取得しました */
+				200: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["SyncLogsResponse"];
+					};
+				};
+				/** @description サーバーエラー */
+				500: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ErrorResponse"];
+					};
+				};
+			};
+		};
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/posts": {
 		parameters: {
 			query?: never;
@@ -1028,6 +1083,54 @@ export interface components {
 			created_at: string;
 			/** Format: date-time */
 			updated_at: string;
+		};
+		/** @description 同期ログ一覧のレスポンス */
+		SyncLogsResponse: {
+			/** @description 同期ログのリスト */
+			logs: components["schemas"]["SyncLogItem"][];
+			/** @description 総件数 */
+			totalCount: number;
+			/** @description 現在のページ番号 */
+			page: number;
+			/** @description 1ページあたりの件数 */
+			limit: number;
+			/** @description 総ページ数 */
+			totalPages: number;
+		};
+		/** @description 同期ログの詳細情報 */
+		SyncLogItem: {
+			/** @description 同期ログID */
+			id: number;
+			/** @description 避難所ID */
+			shelterId?: number | null;
+			/** @description 避難所名 */
+			shelterName?: string | null;
+			/** @description 同期タイプ（full, incremental, manual） */
+			syncType: string;
+			/** @description 同期ステータス（pending, in_progress, completed, failed） */
+			status: string;
+			/**
+			 * Format: date-time
+			 * @description 同期開始日時
+			 */
+			startedAt: string;
+			/**
+			 * Format: date-time
+			 * @description 同期完了日時
+			 */
+			completedAt?: string | null;
+			/** @description 同期された投稿数 */
+			postsSynced: number;
+			/** @description 同期されたコメント数 */
+			commentsSynced: number;
+			/** @description 同期された位置情報トラック数 */
+			locationTracksSynced: number;
+			/** @description 同期された合計件数 */
+			totalSynced: number;
+			/** @description エラーメッセージ（失敗時） */
+			errorMessage?: string | null;
+			/** @description 同期先URL */
+			targetUrl?: string | null;
 		};
 	};
 	responses: never;

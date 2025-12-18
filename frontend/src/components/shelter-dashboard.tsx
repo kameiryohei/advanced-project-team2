@@ -20,6 +20,7 @@ import {
 import { ConversationThread } from "@/components/conversation-thread";
 import { ReportForm } from "@/components/report-form";
 import { ReportMap } from "@/components/report-map";
+import { SyncLogViewer } from "@/components/sync-log-viewer";
 import { SyncStatus } from "@/components/sync-status";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -257,7 +258,7 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 
 			{/* Main Content */}
 			<Tabs defaultValue="reports" className="space-y-4">
-				<TabsList className="grid w-full grid-cols-2">
+				<TabsList className="grid w-full grid-cols-3">
 					<TabsTrigger value="reports" className="flex items-center gap-2">
 						<FileText className="h-4 w-4" />
 						報告管理
@@ -265,6 +266,10 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 					<TabsTrigger value="chat" className="flex items-center gap-2">
 						<MessageSquare className="h-4 w-4" />
 						フリーチャット
+					</TabsTrigger>
+					<TabsTrigger value="sync-logs" className="flex items-center gap-2">
+						<Clock className="h-4 w-4" />
+						同期ログ
 					</TabsTrigger>
 				</TabsList>
 
@@ -568,6 +573,10 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 							</CardContent>
 						</Card>
 					)}
+				</TabsContent>
+
+				<TabsContent value="sync-logs" className="space-y-4">
+					<SyncLogViewer shelterId={currentShelterId} />
 				</TabsContent>
 			</Tabs>
 

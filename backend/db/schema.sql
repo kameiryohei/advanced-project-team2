@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS comments (
 -- 同期メタデータテーブル（同期処理の追跡用）
 CREATE TABLE IF NOT EXISTS sync_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    shelter_id INTEGER REFERENCES shelters(id) ON DELETE SET NULL, -- どの避難所からの同期か
     sync_type TEXT NOT NULL, -- 'full', 'incremental', 'manual'
     status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'in_progress', 'completed', 'failed'
     started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -77,6 +78,7 @@ CREATE TABLE IF NOT EXISTS sync_logs (
 
 CREATE INDEX IF NOT EXISTS idx_sync_logs_status ON sync_logs(status);
 CREATE INDEX IF NOT EXISTS idx_sync_logs_started_at ON sync_logs(started_at);
+CREATE INDEX IF NOT EXISTS idx_sync_logs_shelter_id ON sync_logs(shelter_id);
 
 CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);
 CREATE INDEX IF NOT EXISTS idx_post_location_tracks_post_id ON post_location_tracks(post_id);

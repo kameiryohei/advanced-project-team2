@@ -918,4 +918,70 @@ app.post("/api/sync/receive", async (c) => {
 	}
 });
 
+// 同期ログ一覧を取得
+app.get("/api/sync/logs", async (c) => {
+	const db = dbConnect(c.env);
+
+	try {
+		const shelterIdParam = c.req.query("shelterId");
+		const pageParam = c.req.query("page");
+		const limitParam = c.req.query("limit");
+
+		const shelterId = shelterIdParam
+			? Number.parseInt(shelterIdParam, 10)
+			: undefined;
+		const page = pageParam ? Number.parseInt(pageParam, 10) : 1;
+		const limit = limitParam ? Number.parseInt(limitParam, 10) : 10;
+
+		// バリデーション
+		if (shelterId !== undefined && Number.isNaN(shelterId)) {
+			return c.json({ error: "shelterId must be a valid number" }, 400);
+		}
+		if (Number.isNaN(page) || page < 1) {
+			return c.json({ error: "page must be a positive number" }, 400);
+		}
+		if (Number.isNaN(limit) || limit < 1 || limit > 100) {
+			return c.json({ error: "limit must be between 1 and 100" }, 400);
+		}
+
+		const result = await syncRepository.syncRepository.fetchSyncLogs(
+			db,
+			shelterId,
+			page,
+			limit,
+		);
+
+		// レスポンスを OpenAPI スキーマに合わせて変換
+		const response: paths["/api/sync/logs"]["get"]["responses"]["200"]["content"]["application/json"] =
+			{
+				logs: result.logs.map((log) => ({
+					id: log.id,
+					shelterId: log.shelter_id,
+					shelterName: log.shelter_name,
+					syncType: log.sync_type,
+					status: log.status,
+					startedAt: log.started_at,
+					completedAt: log.completed_at,
+					postsSynced: log.posts_synced,
+					commentsSynced: log.comments_synced,
+					locationTracksSynced: log.location_tracks_synced,
+					totalSynced:
+						log.posts_synced + log.comments_synced + log.location_tracks_synced,
+					errorMessage: log.error_message,
+					targetUrl: log.target_url,
+				})),
+				totalCount: result.totalCount,
+				page: result.page,
+				limit: result.limit,
+				totalPages: result.totalPages,
+			};
+
+		return c.json(response);
+	} catch (error) {
+		console.error("Failed to fetch sync logs", error);
+		const message = error instanceof Error ? error.message : "Unknown error";
+		return c.json({ error: message }, 500);
+	}
+});
+
 export default app;
