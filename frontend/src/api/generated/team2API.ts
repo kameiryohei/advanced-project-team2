@@ -29,6 +29,7 @@ import type {
   CreatePostResponse,
   ErrorResponse,
   GetApiGeocodeReverseParams,
+  GetApiSyncLogsParams,
   GetPostsIdCommentsParams,
   PostCommentsResponse,
   PostDetailResponse,
@@ -39,6 +40,7 @@ import type {
   ShelterPostsResponse,
   SyncExecuteRequest,
   SyncExecuteResponse,
+  SyncLogsResponse,
   SyncReceiveRequest,
   SyncReceiveResponse,
   SyncStatusResponse
@@ -371,6 +373,100 @@ export const usePostApiSyncReceive = <TError = ErrorType<ErrorResponse>,
       return useMutation(mutationOptions, queryClient);
     }
     
+/**
+ * 過去の同期履歴をページネーション形式で取得します。
+ * @summary 同期ログ一覧を取得
+ */
+export const getApiSyncLogs = (
+    params?: GetApiSyncLogsParams,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return axiosInstance<SyncLogsResponse>(
+      {url: `/api/sync/logs`, method: 'GET',
+        params, signal
+    },
+      options);
+    }
+  
+
+
+
+export const getGetApiSyncLogsQueryKey = (params?: GetApiSyncLogsParams,) => {
+    return [
+    `/api/sync/logs`, ...(params ? [params]: [])
+    ] as const;
+    }
+
+    
+export const getGetApiSyncLogsQueryOptions = <TData = Awaited<ReturnType<typeof getApiSyncLogs>>, TError = ErrorType<ErrorResponse>>(params?: GetApiSyncLogsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiSyncLogs>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetApiSyncLogsQueryKey(params);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getApiSyncLogs>>> = ({ signal }) => getApiSyncLogs(params, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getApiSyncLogs>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetApiSyncLogsQueryResult = NonNullable<Awaited<ReturnType<typeof getApiSyncLogs>>>
+export type GetApiSyncLogsQueryError = ErrorType<ErrorResponse>
+
+
+export function useGetApiSyncLogs<TData = Awaited<ReturnType<typeof getApiSyncLogs>>, TError = ErrorType<ErrorResponse>>(
+ params: undefined |  GetApiSyncLogsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiSyncLogs>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getApiSyncLogs>>,
+          TError,
+          Awaited<ReturnType<typeof getApiSyncLogs>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetApiSyncLogs<TData = Awaited<ReturnType<typeof getApiSyncLogs>>, TError = ErrorType<ErrorResponse>>(
+ params?: GetApiSyncLogsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiSyncLogs>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getApiSyncLogs>>,
+          TError,
+          Awaited<ReturnType<typeof getApiSyncLogs>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetApiSyncLogs<TData = Awaited<ReturnType<typeof getApiSyncLogs>>, TError = ErrorType<ErrorResponse>>(
+ params?: GetApiSyncLogsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiSyncLogs>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 同期ログ一覧を取得
+ */
+
+export function useGetApiSyncLogs<TData = Awaited<ReturnType<typeof getApiSyncLogs>>, TError = ErrorType<ErrorResponse>>(
+ params?: GetApiSyncLogsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiSyncLogs>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetApiSyncLogsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
 /**
  * 本文・時刻・位置トラックなどのメタデータと、画像/動画ファイルを同梱して投稿します。
  * @summary 投稿を新規作成（メディア同梱）
