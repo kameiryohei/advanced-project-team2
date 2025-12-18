@@ -140,6 +140,50 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /api/sync/logs:
+    get:
+      tags:
+        - 同期
+      summary: 同期ログ一覧を取得
+      description: 過去の同期履歴をページネーション形式で取得します。
+      parameters:
+        - name: shelterId
+          in: query
+          required: false
+          description: Filter by shelter ID (optional)
+          schema:
+            type: integer
+        - name: page
+          in: query
+          required: false
+          description: Page number (starts from 1, default is 1)
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          required: false
+          description: Number of items per page (default is 10)
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: 同期ログ一覧を取得しました
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncLogsResponse"
+        "500":
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /posts:
     post:
       tags:
@@ -1136,3 +1180,91 @@ components:
         - longitude
         - created_at
         - updated_at
+
+    SyncLogsResponse:
+      type: object
+      description: 同期ログ一覧のレスポンス
+      properties:
+        logs:
+          type: array
+          description: 同期ログのリスト
+          items:
+            $ref: "#/components/schemas/SyncLogItem"
+        totalCount:
+          type: integer
+          description: 総件数
+        page:
+          type: integer
+          description: 現在のページ番号
+        limit:
+          type: integer
+          description: 1ページあたりの件数
+        totalPages:
+          type: integer
+          description: 総ページ数
+      required:
+        - logs
+        - totalCount
+        - page
+        - limit
+        - totalPages
+
+    SyncLogItem:
+      type: object
+      description: 同期ログの詳細情報
+      properties:
+        id:
+          type: integer
+          description: 同期ログID
+        shelterId:
+          type: integer
+          nullable: true
+          description: 避難所ID
+        shelterName:
+          type: string
+          nullable: true
+          description: 避難所名
+        syncType:
+          type: string
+          description: 同期タイプ（full, incremental, manual）
+        status:
+          type: string
+          description: 同期ステータス（pending, in_progress, completed, failed）
+        startedAt:
+          type: string
+          format: date-time
+          description: 同期開始日時
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 同期完了日時
+        postsSynced:
+          type: integer
+          description: 同期された投稿数
+        commentsSynced:
+          type: integer
+          description: 同期されたコメント数
+        locationTracksSynced:
+          type: integer
+          description: 同期された位置情報トラック数
+        totalSynced:
+          type: integer
+          description: 同期された合計件数
+        errorMessage:
+          type: string
+          nullable: true
+          description: エラーメッセージ（失敗時）
+        targetUrl:
+          type: string
+          nullable: true
+          description: 同期先URL
+      required:
+        - id
+        - syncType
+        - status
+        - startedAt
+        - postsSynced
+        - commentsSynced
+        - locationTracksSynced
+        - totalSynced
