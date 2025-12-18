@@ -50,6 +50,7 @@ export type SyncStats = {
 // 同期ログ型
 export type SyncLog = {
 	id: number;
+	shelter_id: number | null;
 	sync_type: string;
 	status: string;
 	started_at: string;
@@ -59,6 +60,20 @@ export type SyncLog = {
 	location_tracks_synced: number;
 	error_message: string | null;
 	target_url: string | null;
+};
+
+// 同期ログと避難所情報を結合した型
+export type SyncLogWithShelter = SyncLog & {
+	shelter_name: string | null;
+};
+
+// ページネーション付き同期ログ型
+export type SyncLogsPaginated = {
+	logs: SyncLogWithShelter[];
+	totalCount: number;
+	page: number;
+	limit: number;
+	totalPages: number;
 };
 
 // 同期結果型
@@ -224,12 +239,16 @@ async function createSyncLog(
 	db: Database,
 	syncType: string,
 	targetUrl: string,
+	shelterId?: number | null,
 ): Promise<number> {
 	const query = `
-		INSERT INTO sync_logs (sync_type, status, target_url)
-		VALUES (?, 'in_progress', ?)
+		INSERT INTO sync_logs (shelter_id, sync_type, status, target_url)
+		VALUES (?, ?, 'in_progress', ?)
 	`;
-	const result = await db.prepare(query).bind(syncType, targetUrl).run();
+	const result = await db
+		.prepare(query)
+		.bind(shelterId || null, syncType, targetUrl)
+		.run();
 	return result.meta.last_row_id as number;
 }
 
@@ -431,6 +450,70 @@ async function receiveAndInsertSyncData(
 	}
 }
 
+/**
+ * 同期ログ一覧を取得（ページネーション対応）
+ */
+async function fetchSyncLogs(
+	db: Database,
+	shelterId?: number,
+	page = 1,
+	limit = 10,
+): Promise<SyncLogsPaginated> {
+	// ページ番号は1から開始、オフセット計算は0から
+	const offset = (page - 1) * limit;
+
+	// フィルタ条件の構築
+	const whereClause = shelterId ? "WHERE sync_logs.shelter_id = ?" : "";
+	const bindParams = shelterId ? [shelterId] : [];
+
+	// 総件数取得
+	const countQuery = `
+		SELECT COUNT(*) as count
+		FROM sync_logs
+		${whereClause}
+	`;
+	const countResult = await db
+		.prepare(countQuery)
+		.bind(...bindParams)
+		.first<{ count: number }>();
+	const totalCount = countResult?.count || 0;
+	const totalPages = Math.ceil(totalCount / limit);
+
+	// ログ一覧取得（避難所名も結合）
+	const logsQuery = `
+		SELECT 
+			sync_logs.id,
+			sync_logs.shelter_id,
+			shelters.name as shelter_name,
+			sync_logs.sync_type,
+			sync_logs.status,
+			sync_logs.started_at,
+			sync_logs.completed_at,
+			sync_logs.posts_synced,
+			sync_logs.comments_synced,
+			sync_logs.location_tracks_synced,
+			sync_logs.error_message,
+			sync_logs.target_url
+		FROM sync_logs
+		LEFT JOIN shelters ON sync_logs.shelter_id = shelters.id
+		${whereClause}
+		ORDER BY sync_logs.started_at DESC
+		LIMIT ? OFFSET ?
+	`;
+	const logsResult = await db
+		.prepare(logsQuery)
+		.bind(...bindParams, limit, offset)
+		.all<SyncLogWithShelter>();
+
+	return {
+		logs: logsResult.results || [],
+		totalCount,
+		page,
+		limit,
+		totalPages,
+	};
+}
+
 export const syncRepository = {
 	fetchUnsyncedPosts,
 	fetchUnsyncedComments,
@@ -446,4 +529,5 @@ export const syncRepository = {
 	insertCommentIfNotExists,
 	insertLocationTrackIfNotExists,
 	receiveAndInsertSyncData,
+	fetchSyncLogs,
 };
