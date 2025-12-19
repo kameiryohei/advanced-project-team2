@@ -989,6 +989,10 @@ components:
         targetUrl:
           type: string
           description: 同期先のAPI URL
+        shelterId:
+          type: integer
+          nullable: true
+          description: 避難所ID（オプション）
       required:
         - targetUrl
 
@@ -1066,11 +1070,46 @@ components:
         locationTracksSynced:
           type: integer
           description: 保存した位置情報トラック数
+        shelterResults:
+          type: array
+          description: 避難所ごとの同期結果
+          items:
+            $ref: "#/components/schemas/ShelterSyncResult"
         error:
           type: string
           nullable: true
           description: エラーメッセージ（失敗時）
       required:
+        - success
+        - postsSynced
+        - commentsSynced
+        - locationTracksSynced
+
+    ShelterSyncResult:
+      type: object
+      description: 避難所ごとの同期結果
+      properties:
+        shelterId:
+          type: integer
+          description: 避難所ID
+        success:
+          type: boolean
+          description: この避難所の同期が成功したかどうか
+        postsSynced:
+          type: integer
+          description: この避難所で保存した投稿数
+        commentsSynced:
+          type: integer
+          description: この避難所で保存したコメント数
+        locationTracksSynced:
+          type: integer
+          description: この避難所で保存した位置情報トラック数
+        errorMessage:
+          type: string
+          nullable: true
+          description: エラーメッセージ（この避難所の同期が失敗した場合）
+      required:
+        - shelterId
         - success
         - postsSynced
         - commentsSynced

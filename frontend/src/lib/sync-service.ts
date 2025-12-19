@@ -248,7 +248,7 @@ class SyncService {
 	/**
 	 * DBデータを本番環境に同期
 	 */
-	async syncDbToProduction(): Promise<DbSyncResult> {
+	async syncDbToProduction(shelterId?: number): Promise<DbSyncResult> {
 		const productionApiUrl = import.meta.env.VITE_PRODUCTION_API_URL;
 
 		if (!productionApiUrl) {
@@ -266,13 +266,19 @@ class SyncService {
 		}
 
 		console.log("[SyncService] 🔄 DB同期開始...");
+		if (shelterId) {
+			console.log("[SyncService] 🏠 避難所ID:", shelterId);
+		}
 		toast.loading("同期中...", {
 			id: "db-sync-toast",
 			description: "データを本番環境に同期しています",
 		});
 
 		try {
-			const result = await postApiSyncExecute({ targetUrl: productionApiUrl });
+			const result = await postApiSyncExecute({
+				targetUrl: productionApiUrl,
+				shelterId: shelterId,
+			});
 
 			console.log("[SyncService] ✅ DB同期完了:", result);
 
@@ -329,8 +335,11 @@ class SyncService {
 			return;
 		}
 
+		// ローカルストレージから現在の避難所IDを取得
+		const shelterId = this.loadFromLocal("current_shelter_id") as number | null;
+
 		// DB同期を実行
-		const result = await this.syncDbToProduction();
+		const result = await this.syncDbToProduction(shelterId || undefined);
 		if (result.success) {
 			console.log(
 				`[SyncService] ✅ 自動同期完了: ${result.postsSynced}件の投稿, ${result.commentsSynced}件のコメント, ${result.locationTracksSynced}件の位置情報`,

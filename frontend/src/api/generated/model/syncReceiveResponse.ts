@@ -4,6 +4,7 @@
  * 先進プロジェクト実験 Team2 避難所 API
  * OpenAPI spec version: 1.0.0
  */
+import type { ShelterSyncResult } from './shelterSyncResult';
 
 /**
  * 同期データ受信レスポンス
@@ -17,6 +18,8 @@ export interface SyncReceiveResponse {
   commentsSynced: number;
   /** 保存した位置情報トラック数 */
   locationTracksSynced: number;
+  /** 避難所ごとの同期結果 */
+  shelterResults?: ShelterSyncResult[];
   /**
    * エラーメッセージ（失敗時）
    * @nullable

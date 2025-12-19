@@ -998,6 +998,8 @@ export interface components {
 		SyncExecuteRequest: {
 			/** @description 同期先のAPI URL */
 			targetUrl: string;
+			/** @description 避難所ID（オプション） */
+			shelterId?: number | null;
 		};
 		/** @description 同期実行レスポンス */
 		SyncExecuteResponse: {
@@ -1035,8 +1037,25 @@ export interface components {
 			commentsSynced: number;
 			/** @description 保存した位置情報トラック数 */
 			locationTracksSynced: number;
+			/** @description 避難所ごとの同期結果 */
+			shelterResults?: components["schemas"]["ShelterSyncResult"][];
 			/** @description エラーメッセージ（失敗時） */
 			error?: string | null;
+		};
+		/** @description 避難所ごとの同期結果 */
+		ShelterSyncResult: {
+			/** @description 避難所ID */
+			shelterId: number;
+			/** @description この避難所の同期が成功したかどうか */
+			success: boolean;
+			/** @description この避難所で保存した投稿数 */
+			postsSynced: number;
+			/** @description この避難所で保存したコメント数 */
+			commentsSynced: number;
+			/** @description この避難所で保存した位置情報トラック数 */
+			locationTracksSynced: number;
+			/** @description エラーメッセージ（この避難所の同期が失敗した場合） */
+			errorMessage?: string | null;
 		};
 		/** @description 未同期の投稿データ */
 		UnsyncedPost: {

@@ -709,20 +709,28 @@ app.post("/api/sync/execute", async (c) => {
 	const db = dbConnect(c.env);
 
 	try {
-		const reqBody = await c.req.json<{ targetUrl: string }>();
+		const reqBody = await c.req.json<{
+			targetUrl: string;
+			shelterId?: number;
+		}>();
 		const targetUrl = reqBody.targetUrl;
+		const shelterId = reqBody.shelterId;
 
 		if (!targetUrl) {
 			return c.json({ error: "targetUrl is required" }, 400);
 		}
 
 		console.log("🔄 同期開始:", targetUrl);
+		if (shelterId) {
+			console.log("🏠 避難所ID:", shelterId);
+		}
 
 		// 同期ログを作成
 		const logId = await syncRepository.syncRepository.createSyncLog(
 			db,
 			"manual",
 			targetUrl,
+			shelterId,
 		);
 
 		// 未同期データを取得
@@ -802,7 +810,7 @@ app.post("/api/sync/execute", async (c) => {
 		}
 
 		console.log("📥 本番APIレスポンスのJSON解析中...");
-		let result: any;
+		let result: unknown;
 		try {
 			result = await response.json();
 			console.log("📥 レスポンスJSON解析成功:", result);
@@ -884,32 +892,152 @@ app.post("/api/sync/receive", async (c) => {
 			`📥 同期データ受信: posts=${syncData.posts?.length || 0}, comments=${syncData.comments?.length || 0}, tracks=${syncData.locationTracks?.length || 0}`,
 		);
 
-		const result = await syncRepository.syncRepository.receiveAndInsertSyncData(
-			db,
-			syncData,
-		);
+		// データが空の場合は早期リターン
+		if (
+			(!syncData.posts || syncData.posts.length === 0) &&
+			(!syncData.comments || syncData.comments.length === 0) &&
+			(!syncData.locationTracks || syncData.locationTracks.length === 0)
+		) {
+			console.log("📥 同期データが空のためスキップ");
+			return c.json({
+				success: true,
+				postsSynced: 0,
+				commentsSynced: 0,
+				locationTracksSynced: 0,
+				shelterResults: [],
+			});
+		}
 
-		if (!result.success) {
-			return c.json(
-				{
-					error: result.errorMessage,
-					postsSynced: result.postsSynced,
-					commentsSynced: result.commentsSynced,
-					locationTracksSynced: result.locationTracksSynced,
-				},
-				500,
+		// 受信データを避難所ごとにグループ化
+		const groupedData =
+			syncRepository.syncRepository.groupDataByShelter(syncData);
+		console.log(`📊 避難所数: ${groupedData.size}`);
+
+		const shelterResults: {
+			shelterId: number;
+			success: boolean;
+			postsSynced: number;
+			commentsSynced: number;
+			locationTracksSynced: number;
+			errorMessage?: string;
+		}[] = [];
+
+		let totalPostsSynced = 0;
+		let totalCommentsSynced = 0;
+		let totalTracksSynced = 0;
+		let overallSuccess = true;
+
+		// 各避難所ごとに同期処理を実行
+		for (const [shelterId, shelterData] of groupedData.entries()) {
+			console.log(
+				`🏠 避難所ID ${shelterId} の同期開始: posts=${shelterData.posts.length}, comments=${shelterData.comments.length}, tracks=${shelterData.locationTracks.length}`,
 			);
+
+			let logId: number | null = null;
+
+			try {
+				// 同期ログを作成
+				logId = await syncRepository.syncRepository.createSyncLog(
+					db,
+					"received",
+					syncData.sourceUrl || "unknown",
+					shelterId,
+				);
+				console.log(`📝 避難所ID ${shelterId} のログID: ${logId}`);
+
+				// データを挿入
+				const result =
+					await syncRepository.syncRepository.receiveAndInsertSyncData(
+						db,
+						shelterData,
+					);
+
+				if (!result.success) {
+					// 挿入エラー
+					console.error(
+						`❌ 避難所ID ${shelterId} のデータ挿入エラー: ${result.errorMessage}`,
+					);
+					await syncRepository.syncRepository.failSyncLog(
+						db,
+						logId,
+						result.errorMessage || "データ挿入エラー",
+					);
+
+					shelterResults.push({
+						shelterId,
+						success: false,
+						postsSynced: result.postsSynced,
+						commentsSynced: result.commentsSynced,
+						locationTracksSynced: result.locationTracksSynced,
+						errorMessage: result.errorMessage,
+					});
+
+					overallSuccess = false;
+				} else {
+					// 挿入成功
+					console.log(
+						`✅ 避難所ID ${shelterId} のデータ挿入完了: posts=${result.postsSynced}, comments=${result.commentsSynced}, tracks=${result.locationTracksSynced}`,
+					);
+					await syncRepository.syncRepository.completeSyncLog(
+						db,
+						logId,
+						result.postsSynced,
+						result.commentsSynced,
+						result.locationTracksSynced,
+					);
+
+					shelterResults.push({
+						shelterId,
+						success: true,
+						postsSynced: result.postsSynced,
+						commentsSynced: result.commentsSynced,
+						locationTracksSynced: result.locationTracksSynced,
+					});
+
+					totalPostsSynced += result.postsSynced;
+					totalCommentsSynced += result.commentsSynced;
+					totalTracksSynced += result.locationTracksSynced;
+				}
+			} catch (error) {
+				// 予期しないエラー
+				console.error(`❌ 避難所ID ${shelterId} の同期中にエラー:`, error);
+				const message =
+					error instanceof Error ? error.message : "Unknown error";
+
+				if (logId !== null) {
+					try {
+						await syncRepository.syncRepository.failSyncLog(db, logId, message);
+					} catch (logError) {
+						console.error(
+							`❌ 避難所ID ${shelterId} のログ更新エラー:`,
+							logError,
+						);
+					}
+				}
+
+				shelterResults.push({
+					shelterId,
+					success: false,
+					postsSynced: 0,
+					commentsSynced: 0,
+					locationTracksSynced: 0,
+					errorMessage: message,
+				});
+
+				overallSuccess = false;
+			}
 		}
 
 		console.log(
-			`✅ 同期データ挿入完了: posts=${result.postsSynced}, comments=${result.commentsSynced}, tracks=${result.locationTracksSynced}`,
+			`✅ 全避難所の同期完了: 合計 posts=${totalPostsSynced}, comments=${totalCommentsSynced}, tracks=${totalTracksSynced}`,
 		);
 
 		return c.json({
-			success: true,
-			postsSynced: result.postsSynced,
-			commentsSynced: result.commentsSynced,
-			locationTracksSynced: result.locationTracksSynced,
+			success: overallSuccess,
+			postsSynced: totalPostsSynced,
+			commentsSynced: totalCommentsSynced,
+			locationTracksSynced: totalTracksSynced,
+			shelterResults,
 		});
 	} catch (error) {
 		console.error("Sync receive failed", error);
