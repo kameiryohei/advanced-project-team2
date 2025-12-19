@@ -141,7 +141,6 @@ export function SyncLogViewer({ shelterId }: SyncLogViewerProps) {
 							<Table>
 								<TableHeader>
 									<TableRow>
-										<TableHead>ID</TableHead>
 										{!shelterId && <TableHead>避難所</TableHead>}
 										<TableHead>同期タイプ</TableHead>
 										<TableHead>ステータス</TableHead>
@@ -156,7 +155,6 @@ export function SyncLogViewer({ shelterId }: SyncLogViewerProps) {
 								<TableBody>
 									{syncLogsData.logs.map((log) => (
 										<TableRow key={log.id}>
-											<TableCell className="font-medium">{log.id}</TableCell>
 											{!shelterId && (
 												<TableCell>
 													{log.shelterName || (
