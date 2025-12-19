@@ -709,20 +709,28 @@ app.post("/api/sync/execute", async (c) => {
 	const db = dbConnect(c.env);
 
 	try {
-		const reqBody = await c.req.json<{ targetUrl: string }>();
+		const reqBody = await c.req.json<{
+			targetUrl: string;
+			shelterId?: number;
+		}>();
 		const targetUrl = reqBody.targetUrl;
+		const shelterId = reqBody.shelterId;
 
 		if (!targetUrl) {
 			return c.json({ error: "targetUrl is required" }, 400);
 		}
 
 		console.log("🔄 同期開始:", targetUrl);
+		if (shelterId) {
+			console.log("🏠 避難所ID:", shelterId);
+		}
 
 		// 同期ログを作成
 		const logId = await syncRepository.syncRepository.createSyncLog(
 			db,
 			"manual",
 			targetUrl,
+			shelterId,
 		);
 
 		// 未同期データを取得
