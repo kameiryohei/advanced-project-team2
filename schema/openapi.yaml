@@ -989,6 +989,10 @@ components:
         targetUrl:
           type: string
           description: 同期先のAPI URL
+        shelterId:
+          type: integer
+          nullable: true
+          description: 避難所ID（オプション）
       required:
         - targetUrl
 

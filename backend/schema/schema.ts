@@ -998,6 +998,8 @@ export interface components {
 		SyncExecuteRequest: {
 			/** @description 同期先のAPI URL */
 			targetUrl: string;
+			/** @description 避難所ID（オプション） */
+			shelterId?: number | null;
 		};
 		/** @description 同期実行レスポンス */
 		SyncExecuteResponse: {

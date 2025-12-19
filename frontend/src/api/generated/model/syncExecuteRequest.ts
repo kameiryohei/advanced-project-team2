@@ -11,4 +11,9 @@
 export interface SyncExecuteRequest {
   /** 同期先のAPI URL */
   targetUrl: string;
+  /**
+   * 避難所ID（オプション）
+   * @nullable
+   */
+  shelterId?: number | null;
 }
