@@ -10,6 +10,7 @@ import {
 import { useState } from "react";
 import { useGetShelters } from "@/api/generated/team2API";
 import { ShelterMap } from "@/components/shelter-map";
+import { SyncLogViewer } from "@/components/sync-log-viewer";
 import { SyncStatus } from "@/components/sync-status";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -437,7 +438,15 @@ export function ShelterOverview({ onShelterSelect }: ShelterOverviewProps) {
 						))}
 					</div>
 				</div>
-
+				{/* Sync Logs */}
+				<Card>
+					<CardHeader>
+						<CardTitle>同期ログ（全避難所）</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<SyncLogViewer />
+					</CardContent>
+				</Card>
 				{/* Quick Actions */}
 				<div className="flex flex-wrap gap-4 justify-center">
 					<Button
