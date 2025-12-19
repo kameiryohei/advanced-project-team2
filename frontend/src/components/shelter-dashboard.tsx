@@ -80,6 +80,17 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 	const { data: shelterDetails } = useGetSheltersId(currentShelterId);
 	const { data: shelterPosts } = useGetSheltersIdPosts(currentShelterId);
 
+	// 現在の避難所IDをローカルストレージに保存（自動同期で使用）
+	useEffect(() => {
+		syncService.saveToLocal("current_shelter_id", currentShelterId);
+		console.log("現在の避難所ID保存:", currentShelterId);
+
+		return () => {
+			// コンポーネントがアンマウントされたら避難所IDをクリア
+			syncService.saveToLocal("current_shelter_id", null);
+		};
+	}, [currentShelterId]);
+
 	// 選択された投稿の詳細を取得
 	const { data: selectedPostDetail, isLoading: isLoadingPostDetail } =
 		useGetPostsId(selectedReport || "", {
