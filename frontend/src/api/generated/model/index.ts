@@ -41,6 +41,7 @@ export * from './shelterPost';
 export * from './shelterPostStatus';
 export * from './shelterPostsResponse';
 export * from './shelterSummary';
+export * from './shelterSyncResult';
 export * from './syncExecuteRequest';
 export * from './syncExecuteResponse';
 export * from './syncLogItem';
