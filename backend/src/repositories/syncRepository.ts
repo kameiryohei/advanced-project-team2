@@ -93,6 +93,16 @@ export type SyncReceiveData = {
 	sourceUrl?: string;
 };
 
+// 避難所ごとの同期結果型
+export type ShelterSyncResult = {
+	shelterId: number;
+	success: boolean;
+	postsSynced: number;
+	commentsSynced: number;
+	locationTracksSynced: number;
+	errorMessage?: string;
+};
+
 /**
  * 未同期の投稿を取得
  */
@@ -451,6 +461,69 @@ async function receiveAndInsertSyncData(
 }
 
 /**
+ * 受信データを避難所ごとにグループ化
+ */
+function groupDataByShelter(
+	data: SyncReceiveData,
+): Map<number, SyncReceiveData> {
+	const grouped = new Map<number, SyncReceiveData>();
+
+	// post_id → shelter_id のマッピングを作成
+	const postIdToShelterId = new Map<string, number>();
+	for (const post of data.posts) {
+		postIdToShelterId.set(post.id, post.shelter_id);
+	}
+
+	// 投稿を避難所ごとにグループ化
+	for (const post of data.posts) {
+		if (!grouped.has(post.shelter_id)) {
+			grouped.set(post.shelter_id, {
+				posts: [],
+				comments: [],
+				locationTracks: [],
+				sourceUrl: data.sourceUrl,
+			});
+		}
+		const group = grouped.get(post.shelter_id);
+		if (group) {
+			group.posts.push(post);
+		}
+	}
+
+	// コメントを避難所ごとに振り分け
+	for (const comment of data.comments) {
+		const shelterId = postIdToShelterId.get(comment.post_id);
+		if (shelterId !== undefined && grouped.has(shelterId)) {
+			const group = grouped.get(shelterId);
+			if (group) {
+				group.comments.push(comment);
+			}
+		} else {
+			console.warn(
+				`[groupDataByShelter] コメントID ${comment.id} の投稿ID ${comment.post_id} が見つかりません。スキップします。`,
+			);
+		}
+	}
+
+	// 位置情報トラックを避難所ごとに振り分け
+	for (const track of data.locationTracks) {
+		const shelterId = postIdToShelterId.get(track.post_id);
+		if (shelterId !== undefined && grouped.has(shelterId)) {
+			const group = grouped.get(shelterId);
+			if (group) {
+				group.locationTracks.push(track);
+			}
+		} else {
+			console.warn(
+				`[groupDataByShelter] 位置情報ID ${track.id} の投稿ID ${track.post_id} が見つかりません。スキップします。`,
+			);
+		}
+	}
+
+	return grouped;
+}
+
+/**
  * 同期ログ一覧を取得（ページネーション対応）
  */
 async function fetchSyncLogs(
@@ -530,4 +603,5 @@ export const syncRepository = {
 	insertLocationTrackIfNotExists,
 	receiveAndInsertSyncData,
 	fetchSyncLogs,
+	groupDataByShelter,
 };
