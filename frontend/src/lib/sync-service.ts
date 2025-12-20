@@ -1,3 +1,4 @@
+import { axiosInstance } from "@/api/axios-instance";
 import { getApiSyncStatus, postApiSyncExecute } from "@/api/generated/team2API";
 import type {
 	SyncStatusResponse,
@@ -15,10 +16,13 @@ interface SyncData {
 
 interface PendingOperation {
 	id: string;
-	type: "create_report" | "add_message" | "update_status";
-	data: unknown;
+	type: "api_request";
+	request: {
+		method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+		url: string;
+		data?: unknown;
+	};
 	timestamp: string;
-	shelterId?: string;
 }
 
 // DB同期統計型（Orval生成型を再エクスポート）
@@ -99,6 +103,14 @@ class SyncService {
 		console.log("[v0] Added pending operation:", pendingOp.type);
 	}
 
+	// Public helper to queue arbitrary API requests when offline
+	queueApiRequest(request: PendingOperation["request"]): void {
+		this.addPendingOperation({
+			type: "api_request",
+			request,
+		});
+	}
+
 	// Save pending operations to localStorage
 	private savePendingOperations(): void {
 		this.saveToLocal("pending_operations", this.pendingOperations);
@@ -135,26 +147,50 @@ class SyncService {
 
 		this.syncInProgress = true;
 		console.log(
-			"[v0] Syncing",
+			"[SyncService] Syncing",
 			this.pendingOperations.length,
 			"pending operations",
 		);
 
 		try {
-			// In a real implementation, this would send data to the server
-			// For now, we'll simulate the sync process
-			await new Promise((resolve) => setTimeout(resolve, 2000));
+			const remaining: PendingOperation[] = [];
 
-			// Clear pending operations after successful sync
-			this.pendingOperations = [];
+			for (const op of this.pendingOperations) {
+				if (op.type !== "api_request") {
+					console.warn("[SyncService] Unknown pending op type:", op.type);
+					remaining.push(op);
+					continue;
+				}
+
+				try {
+					await axiosInstance({
+						method: op.request.method,
+						url: op.request.url,
+						data: op.request.data,
+					});
+					console.log(
+						"[SyncService] ✅ Pending API request success:",
+						op.request.url,
+					);
+				} catch (error) {
+					console.error(
+						"[SyncService] ❌ Pending API request failed, keeping in queue:",
+						op.request.url,
+						error,
+					);
+					remaining.push(op);
+				}
+			}
+
+			this.pendingOperations = remaining;
 			this.savePendingOperations();
 
-			// Notify components about successful sync
-			this.notifySyncComplete();
-
-			console.log("[v0] Sync completed successfully");
+			if (remaining.length === 0) {
+				this.notifySyncComplete();
+				console.log("[SyncService] Sync completed successfully");
+			}
 		} catch (error) {
-			console.error("[v0] Sync failed:", error);
+			console.error("[SyncService] Sync failed:", error);
 		} finally {
 			this.syncInProgress = false;
 		}
@@ -371,6 +407,8 @@ class SyncService {
 
 		try {
 			console.log("[SyncService] 🚀 起動時に同期を試行...");
+			// 先に保留中のリクエストを処理してから本番同期
+			await this.syncPendingOperations();
 			await this.autoSyncOnOnline();
 		} catch (error) {
 			console.error("[SyncService] ❌ 起動時同期エラー:", error);
