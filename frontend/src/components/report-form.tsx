@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { syncService } from "@/lib/sync-service";
 import {
 	Select,
 	SelectContent,
@@ -282,7 +283,37 @@ export function ReportForm({ shelterId, onClose, onSubmit }: ReportFormProps) {
 			onClose();
 		} catch (error) {
 			console.error("投稿の作成に失敗しました:", error);
-			alert("投稿の作成に失敗しました。もう一度お試しください。");
+			if (!navigator.onLine && !formData.attachment) {
+				// 添付なしの場合に限り、オフライン時はAPIリクエストをキューに積む
+				const fallbackRequest: CreatePostRequest = {
+					authorName: formData.reporter || "匿名",
+					shelterId: shelterId,
+					content: formData.details,
+					occurredAt: new Date(formData.datetime).toISOString(),
+					locationTrack: coords
+						? [
+								{
+									latitude: coords.latitude,
+									longitude: coords.longitude,
+									recordedAt: new Date().toISOString(),
+								},
+							]
+						: [],
+					status: formData.priority,
+				};
+
+				syncService.queueApiRequest({
+					method: "POST",
+					url: "/posts",
+					data: fallbackRequest,
+				});
+
+				alert(
+					"オフラインのため投稿を同期待ちに登録しました。オンライン復帰後に送信します。",
+				);
+			} else {
+				alert("投稿の作成に失敗しました。もう一度お試しください。");
+			}
 			setIsSubmitting(false);
 		}
 	};
