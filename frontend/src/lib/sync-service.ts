@@ -38,6 +38,7 @@ class SyncService {
 	private isOnline: boolean = navigator.onLine;
 	private syncInProgress = false;
 	private startupSyncTriggered = false;
+	private readonly pendingOperationsKey = "pending_operations";
 
 	private constructor() {
 		// Listen for online/offline events
@@ -113,14 +114,93 @@ class SyncService {
 
 	// Save pending operations to localStorage
 	private savePendingOperations(): void {
-		this.saveToLocal("pending_operations", this.pendingOperations);
+		this.saveToLocal(this.pendingOperationsKey, this.pendingOperations);
 	}
 
 	// Load pending operations from localStorage
 	private loadPendingOperations(): void {
-		const stored = this.loadFromLocal("pending_operations");
+		const stored = this.loadFromLocal(this.pendingOperationsKey);
 		if (stored && Array.isArray(stored)) {
 			this.pendingOperations = stored;
+		}
+	}
+
+	// Upgrade legacy pending ops (old shapes) to the new api_request format
+	private normalizeLegacyOperations(): void {
+		if (!this.pendingOperations || this.pendingOperations.length === 0) {
+			return;
+		}
+
+		const migrated: PendingOperation[] = [];
+		let migratedCount = 0;
+		let droppedCount = 0;
+
+		for (const op of this.pendingOperations) {
+			// Already new shape
+			if (op.type === "api_request" && "request" in op) {
+				migrated.push(op);
+				continue;
+			}
+
+			// Legacy shapes: missing request or old type values
+			const legacy = op as {
+				type?: string;
+				data?: unknown;
+				shelterId?: string | number | null;
+			};
+
+			let mapped: PendingOperation | null = null;
+			if (legacy.type === "create_report") {
+				mapped = {
+					id: Date.now().toString(),
+					timestamp: new Date().toISOString(),
+					type: "api_request",
+					request: {
+						method: "POST",
+						url: "/posts",
+						data: legacy.data,
+					},
+				};
+			} else if (legacy.type === "add_message") {
+				const shelterId = legacy.shelterId ?? "";
+				mapped = {
+					id: Date.now().toString(),
+					timestamp: new Date().toISOString(),
+					type: "api_request",
+					request: {
+						method: "POST",
+						url: `/shelters/${shelterId}/messages`,
+						data: legacy.data,
+					},
+				};
+			} else if (legacy.type === "update_status") {
+				mapped = {
+					id: Date.now().toString(),
+					timestamp: new Date().toISOString(),
+					type: "api_request",
+					request: {
+						method: "PATCH",
+						url: "/reports/status",
+						data: legacy.data,
+					},
+				};
+			}
+
+			if (mapped) {
+				migrated.push(mapped);
+				migratedCount++;
+			} else {
+				droppedCount++;
+			}
+		}
+
+		this.pendingOperations = migrated;
+		this.savePendingOperations();
+
+		if (migratedCount > 0 || droppedCount > 0) {
+			console.log(
+				`[SyncService] Legacy pending ops normalized. migrated=${migratedCount}, dropped=${droppedCount}`,
+			);
 		}
 	}
 
@@ -128,6 +208,7 @@ class SyncService {
 	private async handleOnline(): Promise<void> {
 		console.log("[v0] Connection restored - starting sync");
 		this.isOnline = true;
+		this.normalizeLegacyOperations();
 		await this.syncPendingOperations();
 		// オンライン復帰時にDB同期も試行
 		await this.autoSyncOnOnline();
@@ -157,8 +238,7 @@ class SyncService {
 
 			for (const op of this.pendingOperations) {
 				if (op.type !== "api_request") {
-					console.warn("[SyncService] Unknown pending op type:", op.type);
-					remaining.push(op);
+					console.warn("[SyncService] Unknown pending op type, dropping:", op);
 					continue;
 				}
 
@@ -408,6 +488,7 @@ class SyncService {
 		try {
 			console.log("[SyncService] 🚀 起動時に同期を試行...");
 			// 先に保留中のリクエストを処理してから本番同期
+			this.normalizeLegacyOperations();
 			await this.syncPendingOperations();
 			await this.autoSyncOnOnline();
 		} catch (error) {
