@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { syncService } from "@/lib/sync-service";
 import {
 	Select,
 	SelectContent,
@@ -335,16 +336,15 @@ export function ConversationThread({
 
 		setIsSubmitting(true);
 
+		// APIリクエスト用データを事前に組み立てる（catchでも参照するため）
+		const commentData: CreateCommentRequest = {
+			authorName: responderName,
+			content: newMessage,
+			...(newStatus && { status: newStatus as CreateCommentRequest["status"] }),
+		};
+
 		try {
 			// APIリクエスト用のデータを作成
-			const commentData: CreateCommentRequest = {
-				authorName: responderName,
-				content: newMessage,
-				...(newStatus && {
-					status: newStatus as CreateCommentRequest["status"],
-				}),
-			};
-
 			// APIを呼び出してコメントを作成
 			const result = await createCommentMutation.mutateAsync({
 				id: report.id,
@@ -378,7 +378,16 @@ export function ConversationThread({
 			}, 100);
 		} catch (error) {
 			console.error("コメントの作成に失敗しました:", error);
-			alert("コメントの投稿に失敗しました。もう一度お試しください。");
+			if (!navigator.onLine) {
+				syncService.queueApiRequest({
+					method: "POST",
+					url: `/posts/${report.id}/comments`,
+					data: commentData,
+				});
+				alert("オフラインのためコメントを同期待ちに登録しました。オンライン復帰後に送信します。");
+			} else {
+				alert("コメントの投稿に失敗しました。もう一度お試しください。");
+			}
 			setIsSubmitting(false);
 		}
 	};
