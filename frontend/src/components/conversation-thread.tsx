@@ -1,5 +1,3 @@
-"use client";
-
 import L from "leaflet";
 import {
 	ArrowLeft,
@@ -384,7 +382,9 @@ export function ConversationThread({
 					url: `/posts/${report.id}/comments`,
 					data: commentData,
 				});
-				alert("オフラインのためコメントを同期待ちに登録しました。オンライン復帰後に送信します。");
+				alert(
+					"オフラインのためコメントを同期待ちに登録しました。オンライン復帰後に送信します。",
+				);
 			} else {
 				alert("コメントの投稿に失敗しました。もう一度お試しください。");
 			}
