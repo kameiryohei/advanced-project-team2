@@ -1,3 +1,4 @@
+import { axiosInstance } from "@/api/axios-instance";
 import { getApiSyncStatus, postApiSyncExecute } from "@/api/generated/team2API";
 import type {
 	SyncStatusResponse,
@@ -15,10 +16,13 @@ interface SyncData {
 
 interface PendingOperation {
 	id: string;
-	type: "create_report" | "add_message" | "update_status";
-	data: unknown;
+	type: "api_request";
+	request: {
+		method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+		url: string;
+		data?: unknown;
+	};
 	timestamp: string;
-	shelterId?: string;
 }
 
 // DB同期統計型（Orval生成型を再エクスポート）
@@ -34,6 +38,7 @@ class SyncService {
 	private isOnline: boolean = navigator.onLine;
 	private syncInProgress = false;
 	private startupSyncTriggered = false;
+	private readonly pendingOperationsKey = "pending_operations";
 
 	private constructor() {
 		// Listen for online/offline events
@@ -99,16 +104,103 @@ class SyncService {
 		console.log("[v0] Added pending operation:", pendingOp.type);
 	}
 
+	// Public helper to queue arbitrary API requests when offline
+	queueApiRequest(request: PendingOperation["request"]): void {
+		this.addPendingOperation({
+			type: "api_request",
+			request,
+		});
+	}
+
 	// Save pending operations to localStorage
 	private savePendingOperations(): void {
-		this.saveToLocal("pending_operations", this.pendingOperations);
+		this.saveToLocal(this.pendingOperationsKey, this.pendingOperations);
 	}
 
 	// Load pending operations from localStorage
 	private loadPendingOperations(): void {
-		const stored = this.loadFromLocal("pending_operations");
+		const stored = this.loadFromLocal(this.pendingOperationsKey);
 		if (stored && Array.isArray(stored)) {
 			this.pendingOperations = stored;
+		}
+	}
+
+	// Upgrade legacy pending ops (old shapes) to the new api_request format
+	private normalizeLegacyOperations(): void {
+		if (!this.pendingOperations || this.pendingOperations.length === 0) {
+			return;
+		}
+
+		const migrated: PendingOperation[] = [];
+		let migratedCount = 0;
+		let droppedCount = 0;
+
+		for (const op of this.pendingOperations) {
+			// Already new shape
+			if (op.type === "api_request" && "request" in op) {
+				migrated.push(op);
+				continue;
+			}
+
+			// Legacy shapes: missing request or old type values
+			const legacy = op as {
+				type?: string;
+				data?: unknown;
+				shelterId?: string | number | null;
+			};
+
+			let mapped: PendingOperation | null = null;
+			if (legacy.type === "create_report") {
+				mapped = {
+					id: Date.now().toString(),
+					timestamp: new Date().toISOString(),
+					type: "api_request",
+					request: {
+						method: "POST",
+						url: "/posts",
+						data: legacy.data,
+					},
+				};
+			} else if (legacy.type === "add_message") {
+				const shelterId = legacy.shelterId ?? "";
+				mapped = {
+					id: Date.now().toString(),
+					timestamp: new Date().toISOString(),
+					type: "api_request",
+					request: {
+						method: "POST",
+						url: `/shelters/${shelterId}/messages`,
+						data: legacy.data,
+					},
+				};
+			} else if (legacy.type === "update_status") {
+				mapped = {
+					id: Date.now().toString(),
+					timestamp: new Date().toISOString(),
+					type: "api_request",
+					request: {
+						method: "PATCH",
+						url: "/reports/status",
+						data: legacy.data,
+					},
+				};
+			}
+
+			if (mapped) {
+				migrated.push(mapped);
+				migratedCount++;
+			} else {
+				droppedCount++;
+			}
+		}
+
+		this.pendingOperations = migrated;
+		this.savePendingOperations();
+
+		if (migratedCount > 0 || droppedCount > 0) {
+			console.log(
+				`[SyncService] Legacy pending ops normalized. migrated=${migratedCount}, dropped=${droppedCount}`,
+			);
 		}
 	}
 
@@ -116,6 +208,7 @@ class SyncService {
 	private async handleOnline(): Promise<void> {
 		console.log("[v0] Connection restored - starting sync");
 		this.isOnline = true;
+		this.normalizeLegacyOperations();
 		await this.syncPendingOperations();
 		// オンライン復帰時にDB同期も試行
 		await this.autoSyncOnOnline();
@@ -135,26 +228,49 @@ class SyncService {
 
 		this.syncInProgress = true;
 		console.log(
-			"[v0] Syncing",
+			"[SyncService] Syncing",
 			this.pendingOperations.length,
 			"pending operations",
 		);
 
 		try {
-			// In a real implementation, this would send data to the server
-			// For now, we'll simulate the sync process
-			await new Promise((resolve) => setTimeout(resolve, 2000));
+			const remaining: PendingOperation[] = [];
 
-			// Clear pending operations after successful sync
-			this.pendingOperations = [];
+			for (const op of this.pendingOperations) {
+				if (op.type !== "api_request") {
+					console.warn("[SyncService] Unknown pending op type, dropping:", op);
+					continue;
+				}
+
+				try {
+					await axiosInstance({
+						method: op.request.method,
+						url: op.request.url,
+						data: op.request.data,
+					});
+					console.log(
+						"[SyncService] ✅ Pending API request success:",
+						op.request.url,
+					);
+				} catch (error) {
+					console.error(
+						"[SyncService] ❌ Pending API request failed, keeping in queue:",
+						op.request.url,
+						error,
+					);
+					remaining.push(op);
+				}
+			}
+
+			this.pendingOperations = remaining;
 			this.savePendingOperations();
 
-			// Notify components about successful sync
-			this.notifySyncComplete();
-
-			console.log("[v0] Sync completed successfully");
+			if (remaining.length === 0) {
+				this.notifySyncComplete();
+				console.log("[SyncService] Sync completed successfully");
+			}
 		} catch (error) {
-			console.error("[v0] Sync failed:", error);
+			console.error("[SyncService] Sync failed:", error);
 		} finally {
 			this.syncInProgress = false;
 		}
@@ -371,6 +487,9 @@ class SyncService {
 
 		try {
 			console.log("[SyncService] 🚀 起動時に同期を試行...");
+			// 先に保留中のリクエストを処理してから本番同期
+			this.normalizeLegacyOperations();
+			await this.syncPendingOperations();
 			await this.autoSyncOnOnline();
 		} catch (error) {
 			console.error("[SyncService] ❌ 起動時同期エラー:", error);

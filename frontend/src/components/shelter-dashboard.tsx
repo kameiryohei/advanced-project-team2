@@ -153,15 +153,6 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 
 	const handleNewReport = (newReport: Report) => {
 		setReports((prev) => [newReport, ...prev]);
-
-		const syncStatus = syncService.getSyncStatus();
-		if (!syncStatus.isOnline) {
-			syncService.addPendingOperation({
-				type: "create_report",
-				data: newReport,
-				shelterId: shelterId,
-			});
-		}
 	};
 
 	const handleUpdateReportStatus = (
@@ -173,15 +164,6 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 				report.id === reportId ? { ...report, status } : report,
 			),
 		);
-
-		const syncStatus = syncService.getSyncStatus();
-		if (!syncStatus.isOnline) {
-			syncService.addPendingOperation({
-				type: "update_status",
-				data: { reportId, status },
-				shelterId: shelterId,
-			});
-		}
 	};
 
 	const selectedReportData = reports.find((r) => r.id === selectedReport);
