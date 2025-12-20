@@ -33,6 +33,7 @@ class SyncService {
 	private syncCallbacks: ((data: SyncData) => void)[] = [];
 	private isOnline: boolean = navigator.onLine;
 	private syncInProgress = false;
+	private startupSyncTriggered = false;
 
 	private constructor() {
 		// Listen for online/offline events
@@ -41,6 +42,9 @@ class SyncService {
 
 		// Load pending operations from localStorage
 		this.loadPendingOperations();
+
+		// Fire once on app startup in production
+		void this.triggerStartupSync();
 	}
 
 	static getInstance(): SyncService {
@@ -344,6 +348,32 @@ class SyncService {
 			console.log(
 				`[SyncService] ✅ 自動同期完了: ${result.postsSynced}件の投稿, ${result.commentsSynced}件のコメント, ${result.locationTracksSynced}件の位置情報`,
 			);
+		}
+	}
+
+	private async triggerStartupSync(): Promise<void> {
+		const isLocal = import.meta.env.VITE_NODE_ENV === "local";
+		if (isLocal || this.startupSyncTriggered) {
+			return;
+		}
+
+		const storageKey = "disaster_system_startup_sync_done";
+		if (sessionStorage.getItem(storageKey) === "true") {
+			return;
+		}
+
+		this.startupSyncTriggered = true;
+		sessionStorage.setItem(storageKey, "true");
+
+		if (!navigator.onLine) {
+			return;
+		}
+
+		try {
+			console.log("[SyncService] 🚀 起動時に同期を試行...");
+			await this.autoSyncOnOnline();
+		} catch (error) {
+			console.error("[SyncService] ❌ 起動時同期エラー:", error);
 		}
 	}
 }
