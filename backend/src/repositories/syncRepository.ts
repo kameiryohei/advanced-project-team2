@@ -37,6 +37,18 @@ export type UnsyncedLocationTrack = {
 	updated_at: string;
 };
 
+// 未同期のメディアデータ型
+export type UnsyncedMedia = {
+	id: string;
+	post_id: string;
+	file_path: string;
+	media_type: string;
+	file_name: string | null;
+	created_at: string;
+	updated_at: string;
+	deleted_at: string | null;
+};
+
 // 同期統計型
 export type SyncStats = {
 	unsyncedPosts: number;
@@ -58,6 +70,7 @@ export type SyncLog = {
 	posts_synced: number;
 	comments_synced: number;
 	location_tracks_synced: number;
+	media_synced: number;
 	error_message: string | null;
 	target_url: string | null;
 };
@@ -82,6 +95,7 @@ export type SyncResult = {
 	postsSynced: number;
 	commentsSynced: number;
 	locationTracksSynced: number;
+	mediaSynced: number;
 	errorMessage?: string;
 };
 
@@ -90,6 +104,7 @@ export type SyncReceiveData = {
 	posts: UnsyncedPost[];
 	comments: UnsyncedComment[];
 	locationTracks: UnsyncedLocationTrack[];
+	media: UnsyncedMedia[];
 	sourceUrl?: string;
 };
 
@@ -152,6 +167,21 @@ async function fetchUnsyncedLocationTracks(
 }
 
 /**
+ * 未同期のメディアを取得
+ */
+async function fetchUnsyncedMedia(db: Database): Promise<UnsyncedMedia[]> {
+	const query = `
+		SELECT 
+			id, post_id, file_path, media_type, file_name, created_at, updated_at, deleted_at
+		FROM media
+		WHERE is_synced = 0 AND deleted_at IS NULL
+		ORDER BY created_at ASC
+	`;
+	const result = await db.prepare(query).all<UnsyncedMedia>();
+	return result.results || [];
+}
+
+/**
  * 投稿の同期フラグを更新
  */
 async function markPostsAsSynced(
@@ -199,6 +229,20 @@ async function markLocationTracksAsSynced(
 	await db
 		.prepare(query)
 		.bind(...trackIds)
+		.run();
+}
+
+async function markMediaAsSynced(
+	db: Database,
+	mediaIds: string[],
+): Promise<void> {
+	if (mediaIds.length === 0) return;
+
+	const placeholders = mediaIds.map(() => "?").join(",");
+	const query = `UPDATE media SET is_synced = 1, updated_at = CURRENT_TIMESTAMP WHERE id IN (${placeholders})`;
+	await db
+		.prepare(query)
+		.bind(...mediaIds)
 		.run();
 }
 
@@ -271,6 +315,7 @@ async function completeSyncLog(
 	postsSynced: number,
 	commentsSynced: number,
 	locationTracksSynced: number,
+	mediaSynced: number,
 ): Promise<void> {
 	const query = `
 		UPDATE sync_logs 
@@ -278,12 +323,13 @@ async function completeSyncLog(
 			completed_at = CURRENT_TIMESTAMP,
 			posts_synced = ?,
 			comments_synced = ?,
-			location_tracks_synced = ?
+			location_tracks_synced = ?,
+			media_synced = ?
 		WHERE id = ?
 	`;
 	await db
 		.prepare(query)
-		.bind(postsSynced, commentsSynced, locationTracksSynced, logId)
+		.bind(postsSynced, commentsSynced, locationTracksSynced, mediaSynced, logId)
 		.run();
 }
 
@@ -413,6 +459,52 @@ async function insertLocationTrackIfNotExists(
 }
 
 /**
+ * メディアを挿入（本番側で使用、重複スキップ）
+ */
+async function insertMediaIfNotExists(
+	db: Database,
+	media: UnsyncedMedia,
+): Promise<boolean> {
+	const existsQuery = `SELECT id FROM media WHERE id = ?`;
+	const exists = await db.prepare(existsQuery).bind(media.id).first();
+	if (exists) {
+		return false;
+	}
+
+	const postExists = await db
+		.prepare(`SELECT id FROM posts WHERE id = ?`)
+		.bind(media.post_id)
+		.first();
+	if (!postExists) {
+		console.warn(
+			`[insertMediaIfNotExists] post_id ${media.post_id} not found for media ${media.id}`,
+		);
+		return false;
+	}
+
+	const insertQuery = `
+		INSERT INTO media (
+			id, post_id, file_path, media_type, file_name,
+			created_at, updated_at, deleted_at, url, is_synced
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, 1)
+	`;
+	await db
+		.prepare(insertQuery)
+		.bind(
+			media.id,
+			media.post_id,
+			media.file_path,
+			media.media_type,
+			media.file_name,
+			media.created_at,
+			media.updated_at,
+			media.deleted_at,
+		)
+		.run();
+	return true;
+}
+
+/**
  * 同期データを受信して挿入（本番側で使用）
  */
 async function receiveAndInsertSyncData(
@@ -420,6 +512,7 @@ async function receiveAndInsertSyncData(
 	data: SyncReceiveData,
 ): Promise<SyncResult> {
 	let postsInserted = 0;
+	let mediaInserted = 0;
 	let commentsInserted = 0;
 	let tracksInserted = 0;
 
@@ -428,6 +521,12 @@ async function receiveAndInsertSyncData(
 		for (const post of data.posts) {
 			const inserted = await insertPostIfNotExists(db, post);
 			if (inserted) postsInserted++;
+		}
+
+		// メディアを挿入（投稿が存在する場合のみ）
+		for (const media of data.media) {
+			const inserted = await insertMediaIfNotExists(db, media);
+			if (inserted) mediaInserted++;
 		}
 
 		// コメントを挿入（投稿が存在する場合のみ）
@@ -442,17 +541,19 @@ async function receiveAndInsertSyncData(
 			if (inserted) tracksInserted++;
 		}
 
-		return {
-			success: true,
-			postsSynced: postsInserted,
-			commentsSynced: commentsInserted,
-			locationTracksSynced: tracksInserted,
-		};
+			return {
+				success: true,
+				postsSynced: postsInserted,
+				mediaSynced: mediaInserted,
+				commentsSynced: commentsInserted,
+				locationTracksSynced: tracksInserted,
+			};
 	} catch (error) {
 		const message = error instanceof Error ? error.message : "Unknown error";
 		return {
 			success: false,
 			postsSynced: postsInserted,
+			mediaSynced: mediaInserted,
 			commentsSynced: commentsInserted,
 			locationTracksSynced: tracksInserted,
 			errorMessage: message,
@@ -487,6 +588,11 @@ async function groupDataByShelter(
 			missingPostIds.add(track.post_id);
 		}
 	}
+	for (const media of data.media) {
+		if (!postIdToShelterId.has(media.post_id)) {
+			missingPostIds.add(media.post_id);
+		}
+	}
 
 	if (missingPostIds.size > 0) {
 		const ids = Array.from(missingPostIds);
@@ -504,17 +610,42 @@ async function groupDataByShelter(
 
 	// 投稿を避難所ごとにグループ化
 	for (const post of data.posts) {
-		if (!grouped.has(post.shelter_id)) {
-			grouped.set(post.shelter_id, {
-				posts: [],
-				comments: [],
-				locationTracks: [],
-				sourceUrl: data.sourceUrl,
-			});
-		}
+			if (!grouped.has(post.shelter_id)) {
+				grouped.set(post.shelter_id, {
+					posts: [],
+					media: [],
+					comments: [],
+					locationTracks: [],
+					sourceUrl: data.sourceUrl,
+				});
+			}
 		const group = grouped.get(post.shelter_id);
 		if (group) {
 			group.posts.push(post);
+		}
+	}
+
+	// メディアを避難所ごとに振り分け
+	for (const media of data.media) {
+		const shelterId = postIdToShelterId.get(media.post_id);
+		if (shelterId !== undefined) {
+			if (!grouped.has(shelterId)) {
+				grouped.set(shelterId, {
+					posts: [],
+					media: [],
+					comments: [],
+					locationTracks: [],
+					sourceUrl: data.sourceUrl,
+				});
+			}
+			const group = grouped.get(shelterId);
+			if (group) {
+				group.media.push(media);
+			}
+		} else {
+			console.warn(
+				`[groupDataByShelter] メディアID ${media.id} の投稿ID ${media.post_id} が見つかりません。スキップします。`,
+			);
 		}
 	}
 
@@ -525,6 +656,7 @@ async function groupDataByShelter(
 			if (!grouped.has(shelterId)) {
 				grouped.set(shelterId, {
 					posts: [],
+					media: [],
 					comments: [],
 					locationTracks: [],
 					sourceUrl: data.sourceUrl,
@@ -548,6 +680,7 @@ async function groupDataByShelter(
 			if (!grouped.has(shelterId)) {
 				grouped.set(shelterId, {
 					posts: [],
+					media: [],
 					comments: [],
 					locationTracks: [],
 					sourceUrl: data.sourceUrl,
@@ -598,19 +731,20 @@ async function fetchSyncLogs(
 
 	// ログ一覧取得（避難所名も結合）
 	const logsQuery = `
-		SELECT 
-			sync_logs.id,
-			sync_logs.shelter_id,
-			shelters.name as shelter_name,
-			sync_logs.sync_type,
-			sync_logs.status,
-			sync_logs.started_at,
-			sync_logs.completed_at,
-			sync_logs.posts_synced,
-			sync_logs.comments_synced,
-			sync_logs.location_tracks_synced,
-			sync_logs.error_message,
-			sync_logs.target_url
+			SELECT 
+				sync_logs.id,
+				sync_logs.shelter_id,
+				shelters.name as shelter_name,
+				sync_logs.sync_type,
+				sync_logs.status,
+				sync_logs.started_at,
+				sync_logs.completed_at,
+				sync_logs.posts_synced,
+				sync_logs.comments_synced,
+				sync_logs.location_tracks_synced,
+				sync_logs.media_synced,
+				sync_logs.error_message,
+				sync_logs.target_url
 		FROM sync_logs
 		LEFT JOIN shelters ON sync_logs.shelter_id = shelters.id
 		${whereClause}
@@ -635,9 +769,11 @@ export const syncRepository = {
 	fetchUnsyncedPosts,
 	fetchUnsyncedComments,
 	fetchUnsyncedLocationTracks,
+	fetchUnsyncedMedia,
 	markPostsAsSynced,
 	markCommentsAsSynced,
 	markLocationTracksAsSynced,
+	markMediaAsSynced,
 	getSyncStats,
 	createSyncLog,
 	completeSyncLog,
