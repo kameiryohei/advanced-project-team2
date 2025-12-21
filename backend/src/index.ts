@@ -909,8 +909,8 @@ app.post("/api/sync/receive", async (c) => {
 		}
 
 		// 受信データを避難所ごとにグループ化
-		const groupedData =
-			syncRepository.syncRepository.groupDataByShelter(syncData);
+			const groupedData =
+				await syncRepository.syncRepository.groupDataByShelter(db, syncData);
 		console.log(`📊 避難所数: ${groupedData.size}`);
 
 		const shelterResults: {
