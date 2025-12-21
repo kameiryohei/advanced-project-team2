@@ -7,6 +7,13 @@ export class SignedVideoFetchError extends Error {
 	}
 }
 
+export class SignedVideoUploadError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "SignedVideoUploadError";
+	}
+}
+
 export type SignedVideoFetchParams = {
 	bucketName: string;
 	accountId: string;
@@ -14,6 +21,16 @@ export type SignedVideoFetchParams = {
 	accessKeyId: string;
 	secretAccessKey: string;
 	expiresInSeconds?: number;
+};
+
+export type SignedVideoUploadParams = {
+	bucketName: string;
+	accountId: string;
+	objectKey: string;
+	accessKeyId: string;
+	secretAccessKey: string;
+	body: ArrayBuffer;
+	contentType: string;
 };
 
 const DEFAULT_EXPIRATION_SECONDS = 3600;
@@ -46,4 +63,41 @@ export const fetchSignedVideo = async ({
 	);
 
 	return signedRequest.url;
+};
+
+export const uploadSignedVideo = async ({
+	bucketName,
+	accountId,
+	objectKey,
+	accessKeyId,
+	secretAccessKey,
+	body,
+	contentType,
+}: SignedVideoUploadParams): Promise<void> => {
+	const url = new URL(
+		`https://${bucketName}.${accountId}.r2.cloudflarestorage.com/${objectKey}`,
+	);
+
+	const client = new AwsClient({
+		accessKeyId,
+		secretAccessKey,
+	});
+
+	const signedRequest = await client.sign(
+		new Request(url, {
+			method: "PUT",
+			body,
+			headers: {
+				"Content-Type": contentType,
+			},
+		}),
+	);
+
+	const response = await fetch(signedRequest);
+	if (!response.ok) {
+		const message = await response.text();
+		throw new SignedVideoUploadError(
+			`Upload failed: ${response.status} ${message}`,
+		);
+	}
 };
