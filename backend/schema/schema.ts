@@ -204,7 +204,11 @@ export interface paths {
 				path?: never;
 				cookie?: never;
 			};
-			requestBody?: never;
+			requestBody: {
+				content: {
+					"application/json": components["schemas"]["SyncMediaExecuteRequest"];
+				};
+			};
 			responses: {
 				/** @description メディア同期を実行しました */
 				200: {
@@ -213,6 +217,67 @@ export interface paths {
 					};
 					content: {
 						"application/json": components["schemas"]["SyncMediaResponse"];
+					};
+				};
+				/** @description サーバーエラー */
+				500: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ErrorResponse"];
+					};
+				};
+			};
+		};
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/sync/media/receive": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * メディア同期データを受信
+		 * @description 本番側でメディアファイルを受信してR2に保存します。
+		 */
+		post: {
+			parameters: {
+				query?: never;
+				header?: never;
+				path?: never;
+				cookie?: never;
+			};
+			requestBody: {
+				content: {
+					"multipart/form-data": components["schemas"]["SyncMediaReceiveRequest"];
+				};
+			};
+			responses: {
+				/** @description メディアを保存しました */
+				200: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["SyncMediaReceiveResponse"];
+					};
+				};
+				/** @description リクエストが不正です */
+				400: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ErrorResponse"];
 					};
 				};
 				/** @description サーバーエラー */
@@ -1087,6 +1152,28 @@ export interface components {
 			failed: number;
 			/** @description 失敗詳細 */
 			errors?: components["schemas"]["SyncMediaError"][];
+		};
+		/** @description メディア同期実行リクエスト */
+		SyncMediaExecuteRequest: {
+			/** @description 同期先のAPI URL */
+			targetUrl: string;
+		};
+		/** @description メディア受信リクエスト */
+		SyncMediaReceiveRequest: {
+			/** @description R2オブジェクトキー */
+			filePath: string;
+			/** @description コンテンツタイプ */
+			contentType?: string;
+			/**
+			 * Format: binary
+			 * @description メディアファイル本体
+			 */
+			file: string;
+		};
+		/** @description メディア受信レスポンス */
+		SyncMediaReceiveResponse: {
+			/** @description 保存成功 */
+			success: boolean;
 		};
 		/** @description 同期データ受信リクエスト */
 		SyncReceiveRequest: {

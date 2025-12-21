@@ -120,6 +120,12 @@ paths:
         - 同期
       summary: メディア同期を実行
       description: ローカルR2の未同期メディアを本番R2に同期します。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncMediaExecuteRequest"
       responses:
         "200":
           description: メディア同期を実行しました
@@ -127,6 +133,38 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SyncMediaResponse"
+        "500":
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/sync/media/receive:
+    post:
+      tags:
+        - 同期
+      summary: メディア同期データを受信
+      description: 本番側でメディアファイルを受信してR2に保存します。
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/SyncMediaReceiveRequest"
+      responses:
+        "200":
+          description: メディアを保存しました
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncMediaReceiveResponse"
+        "400":
+          description: リクエストが不正です
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "500":
           description: サーバーエラー
           content:
@@ -1094,6 +1132,44 @@ components:
         - total
         - mediaSynced
         - failed
+
+    SyncMediaExecuteRequest:
+      type: object
+      description: メディア同期実行リクエスト
+      properties:
+        targetUrl:
+          type: string
+          description: 同期先のAPI URL
+      required:
+        - targetUrl
+
+    SyncMediaReceiveRequest:
+      type: object
+      description: メディア受信リクエスト
+      properties:
+        filePath:
+          type: string
+          description: R2オブジェクトキー
+        contentType:
+          type: string
+          description: コンテンツタイプ
+        file:
+          type: string
+          format: binary
+          description: メディアファイル本体
+      required:
+        - filePath
+        - file
+
+    SyncMediaReceiveResponse:
+      type: object
+      description: メディア受信レスポンス
+      properties:
+        success:
+          type: boolean
+          description: 保存成功
+      required:
+        - success
 
     SyncReceiveRequest:
       type: object
