@@ -182,6 +182,32 @@ async function fetchUnsyncedMedia(db: Database): Promise<UnsyncedMedia[]> {
 }
 
 /**
+ * 指定した投稿に紐づくメディアを取得（メタ同期用）
+ */
+async function fetchMediaByPostIds(
+	db: Database,
+	postIds: string[],
+): Promise<UnsyncedMedia[]> {
+	if (postIds.length === 0) {
+		return [];
+	}
+
+	const placeholders = postIds.map(() => "?").join(",");
+	const query = `
+		SELECT 
+			id, post_id, file_path, media_type, file_name, created_at, updated_at, deleted_at
+		FROM media
+		WHERE post_id IN (${placeholders}) AND deleted_at IS NULL
+		ORDER BY created_at ASC
+	`;
+	const result = await db
+		.prepare(query)
+		.bind(...postIds)
+		.all<UnsyncedMedia>();
+	return result.results || [];
+}
+
+/**
  * 投稿の同期フラグを更新
  */
 async function markPostsAsSynced(
@@ -773,6 +799,7 @@ export const syncRepository = {
 	fetchUnsyncedComments,
 	fetchUnsyncedLocationTracks,
 	fetchUnsyncedMedia,
+	fetchMediaByPostIds,
 	markPostsAsSynced,
 	markCommentsAsSynced,
 	markLocationTracksAsSynced,
