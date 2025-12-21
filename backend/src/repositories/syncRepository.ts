@@ -541,13 +541,13 @@ async function receiveAndInsertSyncData(
 			if (inserted) tracksInserted++;
 		}
 
-			return {
-				success: true,
-				postsSynced: postsInserted,
-				mediaSynced: mediaInserted,
-				commentsSynced: commentsInserted,
-				locationTracksSynced: tracksInserted,
-			};
+		return {
+			success: true,
+			postsSynced: postsInserted,
+			mediaSynced: mediaInserted,
+			commentsSynced: commentsInserted,
+			locationTracksSynced: tracksInserted,
+		};
 	} catch (error) {
 		const message = error instanceof Error ? error.message : "Unknown error";
 		return {
@@ -598,10 +598,13 @@ async function groupDataByShelter(
 		const ids = Array.from(missingPostIds);
 		const placeholders = ids.map(() => "?").join(", ");
 		const query = `SELECT id, shelter_id FROM posts WHERE id IN (${placeholders})`;
-		const result = await db.prepare(query).bind(...ids).all<{
-			id: string;
-			shelter_id: number;
-		}>();
+		const result = await db
+			.prepare(query)
+			.bind(...ids)
+			.all<{
+				id: string;
+				shelter_id: number;
+			}>();
 
 		for (const row of result.results || []) {
 			postIdToShelterId.set(row.id, row.shelter_id);
@@ -610,15 +613,15 @@ async function groupDataByShelter(
 
 	// 投稿を避難所ごとにグループ化
 	for (const post of data.posts) {
-			if (!grouped.has(post.shelter_id)) {
-				grouped.set(post.shelter_id, {
-					posts: [],
-					media: [],
-					comments: [],
-					locationTracks: [],
-					sourceUrl: data.sourceUrl,
-				});
-			}
+		if (!grouped.has(post.shelter_id)) {
+			grouped.set(post.shelter_id, {
+				posts: [],
+				media: [],
+				comments: [],
+				locationTracks: [],
+				sourceUrl: data.sourceUrl,
+			});
+		}
 		const group = grouped.get(post.shelter_id);
 		if (group) {
 			group.posts.push(post);
