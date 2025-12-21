@@ -114,6 +114,26 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /api/sync/media:
+    post:
+      tags:
+        - 同期
+      summary: メディア同期を実行
+      description: ローカルR2の未同期メディアを本番R2に同期します。
+      responses:
+        "200":
+          description: メディア同期を実行しました
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncMediaResponse"
+        "500":
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /api/sync/receive:
     post:
       tags:
@@ -1012,6 +1032,9 @@ components:
         locationTracksSynced:
           type: integer
           description: 同期した位置情報トラック数
+        mediaSynced:
+          type: integer
+          description: 同期したメディア件数
         message:
           type: string
           nullable: true
@@ -1025,6 +1048,52 @@ components:
         - postsSynced
         - commentsSynced
         - locationTracksSynced
+        - mediaSynced
+
+    SyncMediaError:
+      type: object
+      description: メディア同期エラー情報
+      properties:
+        mediaId:
+          type: string
+          description: メディアID
+        filePath:
+          type: string
+          description: R2オブジェクトキー
+        error:
+          type: string
+          description: エラーメッセージ
+      required:
+        - mediaId
+        - filePath
+        - error
+
+    SyncMediaResponse:
+      type: object
+      description: メディア同期レスポンス
+      properties:
+        success:
+          type: boolean
+          description: 同期が成功したかどうか
+        total:
+          type: integer
+          description: 同期対象の総件数
+        mediaSynced:
+          type: integer
+          description: 同期したメディア件数
+        failed:
+          type: integer
+          description: 失敗件数
+        errors:
+          type: array
+          description: 失敗詳細
+          items:
+            $ref: "#/components/schemas/SyncMediaError"
+      required:
+        - success
+        - total
+        - mediaSynced
+        - failed
 
     SyncReceiveRequest:
       type: object
@@ -1045,6 +1114,11 @@ components:
           description: 同期する位置情報トラックデータ
           items:
             $ref: "#/components/schemas/UnsyncedLocationTrack"
+        media:
+          type: array
+          description: 同期するメディアデータ
+          items:
+            $ref: "#/components/schemas/UnsyncedMedia"
         sourceUrl:
           type: string
           nullable: true
@@ -1053,6 +1127,7 @@ components:
         - posts
         - comments
         - locationTracks
+        - media
 
     SyncReceiveResponse:
       type: object
@@ -1070,6 +1145,9 @@ components:
         locationTracksSynced:
           type: integer
           description: 保存した位置情報トラック数
+        mediaSynced:
+          type: integer
+          description: 保存したメディア件数
         shelterResults:
           type: array
           description: 避難所ごとの同期結果
@@ -1084,6 +1162,7 @@ components:
         - postsSynced
         - commentsSynced
         - locationTracksSynced
+        - mediaSynced
 
     ShelterSyncResult:
       type: object
@@ -1220,6 +1299,39 @@ components:
         - created_at
         - updated_at
 
+    UnsyncedMedia:
+      type: object
+      description: 未同期のメディアデータ
+      properties:
+        id:
+          type: string
+        post_id:
+          type: string
+        file_path:
+          type: string
+        media_type:
+          type: string
+        file_name:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - post_id
+        - file_path
+        - media_type
+        - created_at
+        - updated_at
+
     SyncLogsResponse:
       type: object
       description: 同期ログ一覧のレスポンス
@@ -1287,6 +1399,9 @@ components:
         locationTracksSynced:
           type: integer
           description: 同期された位置情報トラック数
+        mediaSynced:
+          type: integer
+          description: 同期されたメディア件数
         totalSynced:
           type: integer
           description: 同期された合計件数
@@ -1306,4 +1421,5 @@ components:
         - postsSynced
         - commentsSynced
         - locationTracksSynced
+        - mediaSynced
         - totalSynced
