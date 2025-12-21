@@ -388,15 +388,15 @@ class SyncService {
 			toast.error("同期失敗", {
 				description: errorMsg,
 			});
-				return {
-					success: false,
-					postsSynced: 0,
-					commentsSynced: 0,
-					locationTracksSynced: 0,
-					mediaSynced: 0,
-					error: errorMsg,
-				};
-			}
+			return {
+				success: false,
+				postsSynced: 0,
+				commentsSynced: 0,
+				locationTracksSynced: 0,
+				mediaSynced: 0,
+				error: errorMsg,
+			};
+		}
 
 		console.log("[SyncService] 🔄 DB同期開始...");
 		if (shelterId) {
@@ -446,15 +446,15 @@ class SyncService {
 				description: message,
 			});
 
-				return {
-					success: false,
-					postsSynced: 0,
-					commentsSynced: 0,
-					locationTracksSynced: 0,
-					mediaSynced: 0,
-					error: message,
-				};
-			}
+			return {
+				success: false,
+				postsSynced: 0,
+				commentsSynced: 0,
+				locationTracksSynced: 0,
+				mediaSynced: 0,
+				error: message,
+			};
+		}
 	}
 
 	/**
