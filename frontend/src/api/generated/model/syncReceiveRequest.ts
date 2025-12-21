@@ -7,6 +7,7 @@
 import type { UnsyncedPost } from './unsyncedPost';
 import type { UnsyncedComment } from './unsyncedComment';
 import type { UnsyncedLocationTrack } from './unsyncedLocationTrack';
+import type { UnsyncedMedia } from './unsyncedMedia';
 
 /**
  * 同期データ受信リクエスト
@@ -18,6 +19,8 @@ export interface SyncReceiveRequest {
   comments: UnsyncedComment[];
   /** 同期する位置情報トラックデータ */
   locationTracks: UnsyncedLocationTrack[];
+  /** 同期するメディアデータ */
+  media: UnsyncedMedia[];
   /**
    * 同期元のURL
    * @nullable

@@ -17,6 +17,8 @@ export interface SyncExecuteResponse {
   commentsSynced: number;
   /** 同期した位置情報トラック数 */
   locationTracksSynced: number;
+  /** 同期したメディア件数 */
+  mediaSynced: number;
   /**
    * 追加のメッセージ
    * @nullable

@@ -18,6 +18,8 @@ export interface SyncReceiveResponse {
   commentsSynced: number;
   /** 保存した位置情報トラック数 */
   locationTracksSynced: number;
+  /** 保存したメディア件数 */
+  mediaSynced: number;
   /** 避難所ごとの同期結果 */
   shelterResults?: ShelterSyncResult[];
   /**
