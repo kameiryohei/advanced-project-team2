@@ -31,6 +31,18 @@ export type DbSyncStats = SyncStatusResponse;
 // DB同期結果型（Orval生成型を再エクスポート）
 export type DbSyncResult = SyncExecuteResponse;
 
+type MediaSyncResult = {
+	success: boolean;
+	total: number;
+	mediaSynced: number;
+	failed: number;
+	errors?: Array<{
+		mediaId: string;
+		filePath: string;
+		error: string;
+	}>;
+};
+
 class SyncService {
 	private static instance: SyncService;
 	private pendingOperations: PendingOperation[] = [];
@@ -344,7 +356,7 @@ class SyncService {
 	 * 本番APIが利用可能かチェック
 	 */
 	async checkProductionApiAvailable(): Promise<boolean> {
-		const productionApiUrl = import.meta.env.VITE_PRODUCTION_API_URL;
+		const productionApiUrl = import.meta.env.VITE_API_BASE_URL;
 		if (!productionApiUrl) {
 			return false;
 		}
@@ -369,21 +381,22 @@ class SyncService {
 	 * DBデータを本番環境に同期
 	 */
 	async syncDbToProduction(shelterId?: number): Promise<DbSyncResult> {
-		const productionApiUrl = import.meta.env.VITE_PRODUCTION_API_URL;
+		const productionApiUrl = import.meta.env.VITE_API_BASE_URL;
 
 		if (!productionApiUrl) {
 			const errorMsg = "本番API URLが設定されていません";
 			toast.error("同期失敗", {
 				description: errorMsg,
 			});
-			return {
-				success: false,
-				postsSynced: 0,
-				commentsSynced: 0,
-				locationTracksSynced: 0,
-				error: errorMsg,
-			};
-		}
+				return {
+					success: false,
+					postsSynced: 0,
+					commentsSynced: 0,
+					locationTracksSynced: 0,
+					mediaSynced: 0,
+					error: errorMsg,
+				};
+			}
 
 		console.log("[SyncService] 🔄 DB同期開始...");
 		if (shelterId) {
@@ -406,11 +419,12 @@ class SyncService {
 				const totalSynced =
 					result.postsSynced +
 					result.commentsSynced +
-					result.locationTracksSynced;
+					result.locationTracksSynced +
+					result.mediaSynced;
 
 				toast.success("同期完了", {
 					id: "db-sync-toast",
-					description: `${totalSynced}件のデータを同期しました（投稿: ${result.postsSynced}, コメント: ${result.commentsSynced}, 位置情報: ${result.locationTracksSynced}）`,
+					description: `${totalSynced}件のデータを同期しました（投稿: ${result.postsSynced}, コメント: ${result.commentsSynced}, 位置情報: ${result.locationTracksSynced}, メディア: ${result.mediaSynced}）`,
 				});
 			} else {
 				toast.error("同期失敗", {
@@ -432,13 +446,41 @@ class SyncService {
 				description: message,
 			});
 
-			return {
-				success: false,
-				postsSynced: 0,
-				commentsSynced: 0,
-				locationTracksSynced: 0,
-				error: message,
-			};
+				return {
+					success: false,
+					postsSynced: 0,
+					commentsSynced: 0,
+					locationTracksSynced: 0,
+					mediaSynced: 0,
+					error: message,
+				};
+			}
+	}
+
+	/**
+	 * メディアを本番R2に同期
+	 */
+	async syncMediaToProduction(): Promise<MediaSyncResult | null> {
+		try {
+			const result = await axiosInstance<MediaSyncResult>({
+				url: "/api/sync/media",
+				method: "POST",
+			});
+
+			if (result.success) {
+				console.log(
+					`[SyncService] ✅ メディア同期完了: ${result.mediaSynced}/${result.total}`,
+				);
+			} else {
+				console.log(
+					`[SyncService] ⚠️ メディア同期失敗: ${result.failed}/${result.total}`,
+				);
+			}
+
+			return result;
+		} catch (error) {
+			console.error("[SyncService] ❌ メディア同期エラー:", error);
+			return null;
 		}
 	}
 
@@ -462,9 +504,11 @@ class SyncService {
 		const result = await this.syncDbToProduction(shelterId || undefined);
 		if (result.success) {
 			console.log(
-				`[SyncService] ✅ 自動同期完了: ${result.postsSynced}件の投稿, ${result.commentsSynced}件のコメント, ${result.locationTracksSynced}件の位置情報`,
+				`[SyncService] ✅ 自動同期完了: ${result.postsSynced}件の投稿, ${result.commentsSynced}件のコメント, ${result.locationTracksSynced}件の位置情報, ${result.mediaSynced}件のメディア`,
 			);
 		}
+
+		await this.syncMediaToProduction();
 	}
 
 	private async triggerStartupSync(): Promise<void> {
