@@ -734,12 +734,15 @@ app.post("/api/sync/execute", async (c) => {
 		);
 
 		// 未同期データを取得
-		const [posts, comments, locationTracks, media] = await Promise.all([
+		const [posts, comments, locationTracks] = await Promise.all([
 			syncRepository.syncRepository.fetchUnsyncedPosts(db),
 			syncRepository.syncRepository.fetchUnsyncedComments(db),
 			syncRepository.syncRepository.fetchUnsyncedLocationTracks(db),
-			syncRepository.syncRepository.fetchUnsyncedMedia(db),
 		]);
+		const media = await syncRepository.syncRepository.fetchMediaByPostIds(
+			db,
+			posts.map((post) => post.id),
+		);
 
 		console.log(
 			`📊 未同期データ: posts=${posts.length}, comments=${comments.length}, tracks=${locationTracks.length}, media=${media.length}`,
@@ -748,10 +751,16 @@ app.post("/api/sync/execute", async (c) => {
 		if (
 			posts.length === 0 &&
 			comments.length === 0 &&
-			locationTracks.length === 0 &&
-			media.length === 0
+			locationTracks.length === 0
 		) {
-			await syncRepository.syncRepository.completeSyncLog(db, logId, 0, 0, 0, 0);
+			await syncRepository.syncRepository.completeSyncLog(
+				db,
+				logId,
+				0,
+				0,
+				0,
+				0,
+			);
 			return c.json({
 				success: true,
 				message: "同期するデータがありません",
@@ -847,7 +856,6 @@ app.post("/api/sync/execute", async (c) => {
 				syncRepository.syncRepository.markPostsAsSynced(db, postIds),
 				syncRepository.syncRepository.markCommentsAsSynced(db, commentIds),
 				syncRepository.syncRepository.markLocationTracksAsSynced(db, trackIds),
-				syncRepository.syncRepository.markMediaAsSynced(db, mediaIds),
 			]);
 			console.log("✅ is_synced フラグ更新完了");
 		} catch (markError) {
@@ -857,26 +865,26 @@ app.post("/api/sync/execute", async (c) => {
 
 		// 同期ログを完了に更新
 		console.log("🔄 同期ログ更新中...");
-			await syncRepository.syncRepository.completeSyncLog(
-				db,
-				logId,
-				posts.length,
-				comments.length,
-				locationTracks.length,
-				media.length,
-			);
+		await syncRepository.syncRepository.completeSyncLog(
+			db,
+			logId,
+			posts.length,
+			comments.length,
+			locationTracks.length,
+			media.length,
+		);
 		console.log("✅ 同期ログ更新完了");
 
 		console.log("✅ 同期完了");
 
-			return c.json({
-				success: true,
-				postsSynced: posts.length,
-				commentsSynced: comments.length,
-				locationTracksSynced: locationTracks.length,
-				mediaSynced: media.length,
-				remoteResult: result,
-			});
+		return c.json({
+			success: true,
+			postsSynced: posts.length,
+			commentsSynced: comments.length,
+			locationTracksSynced: locationTracks.length,
+			mediaSynced: media.length,
+			remoteResult: result,
+		});
 	} catch (error) {
 		console.error("❌❌❌ Sync execution failed ❌❌❌");
 		console.error("エラーオブジェクト:", error);
@@ -896,9 +904,17 @@ app.post("/api/sync/media", async (c) => {
 	const bucket = c.env.ASSET_BUCKET;
 
 	try {
-		const mediaItems = await syncRepository.syncRepository.fetchUnsyncedMedia(
-			db,
-		);
+		const reqBody = await c.req.json<{
+			targetUrl: string;
+		}>();
+		const targetUrl = reqBody.targetUrl;
+
+		if (!targetUrl) {
+			return c.json({ error: "targetUrl is required" }, 400);
+		}
+
+		const mediaItems =
+			await syncRepository.syncRepository.fetchUnsyncedMedia(db);
 
 		if (mediaItems.length === 0) {
 			const response: paths["/api/sync/media"]["post"]["responses"]["200"]["content"]["application/json"] =
@@ -937,15 +953,23 @@ app.post("/api/sync/media", async (c) => {
 					media.media_type ||
 					"application/octet-stream";
 
-				await signedVideoRepository.uploadSignedVideo({
-					bucketName: c.env.R2_BUCKET_NAME,
-					accountId: c.env.CLOUDFLARE_R2_ACCOUNT_ID,
-					objectKey: media.file_path,
-					accessKeyId: c.env.R2_ACCESS_KEY_ID,
-					secretAccessKey: c.env.R2_SECRET_ACCESS_KEY,
-					body,
-					contentType,
+				const fileName =
+					media.file_name || media.file_path.split("/").pop() || media.id;
+
+				const formData = new FormData();
+				formData.set("filePath", media.file_path);
+				formData.set("contentType", contentType);
+				formData.set("file", new File([body], fileName, { type: contentType }));
+
+				const response = await fetch(`${targetUrl}/api/sync/media/receive`, {
+					method: "POST",
+					body: formData,
 				});
+
+				if (!response.ok) {
+					const message = await response.text();
+					throw new Error(`receive failed: ${response.status} ${message}`);
+				}
 
 				syncedIds.push(media.id);
 			} catch (error) {
@@ -983,6 +1007,51 @@ app.post("/api/sync/media", async (c) => {
 });
 
 // 同期データを受信（本番側で使用）
+app.post("/api/sync/media/receive", async (c) => {
+	const bucket = c.env.ASSET_BUCKET;
+
+	try {
+		const formData = await c.req.formData();
+		const filePath = formData.get("filePath");
+		const contentTypeField = formData.get("contentType");
+		const file = formData.get("file");
+
+		if (!filePath || typeof filePath !== "string" || !(file instanceof File)) {
+			const errorResponse: components["schemas"]["ErrorResponse"] = {
+				error: "filePath and file are required",
+			};
+			return c.json(errorResponse, 400);
+		}
+
+		const contentType =
+			typeof contentTypeField === "string" && contentTypeField.length > 0
+				? contentTypeField
+				: file.type || "application/octet-stream";
+
+		const body = await file.arrayBuffer();
+		await videoRepository.uploadVideo({
+			bucket,
+			key: filePath,
+			body,
+			contentType,
+		});
+
+		const response: paths["/api/sync/media/receive"]["post"]["responses"]["200"]["content"]["application/json"] =
+			{
+				success: true,
+			};
+		return c.json(response);
+	} catch (error) {
+		console.error("Media receive failed", error);
+		const message = error instanceof Error ? error.message : "Unknown error";
+		const errorResponse: components["schemas"]["ErrorResponse"] = {
+			error: message,
+		};
+		return c.json(errorResponse, 500);
+	}
+});
+
+// 同期データを受信（本番側で使用）
 app.post("/api/sync/receive", async (c) => {
 	const db = dbConnect(c.env);
 
@@ -994,49 +1063,51 @@ app.post("/api/sync/receive", async (c) => {
 		);
 
 		// データが空の場合は早期リターン
-			if (
-				(!syncData.posts || syncData.posts.length === 0) &&
-				(!syncData.comments || syncData.comments.length === 0) &&
-				(!syncData.locationTracks || syncData.locationTracks.length === 0) &&
-				(!syncData.media || syncData.media.length === 0)
-			) {
-				console.log("📥 同期データが空のためスキップ");
-				return c.json({
-					success: true,
-					postsSynced: 0,
-					commentsSynced: 0,
-					locationTracksSynced: 0,
-					mediaSynced: 0,
-					shelterResults: [],
-				});
-			}
+		if (
+			(!syncData.posts || syncData.posts.length === 0) &&
+			(!syncData.comments || syncData.comments.length === 0) &&
+			(!syncData.locationTracks || syncData.locationTracks.length === 0) &&
+			(!syncData.media || syncData.media.length === 0)
+		) {
+			console.log("📥 同期データが空のためスキップ");
+			return c.json({
+				success: true,
+				postsSynced: 0,
+				commentsSynced: 0,
+				locationTracksSynced: 0,
+				mediaSynced: 0,
+				shelterResults: [],
+			});
+		}
 
 		// 受信データを避難所ごとにグループ化
-			const groupedData =
-				await syncRepository.syncRepository.groupDataByShelter(db, syncData);
+		const groupedData = await syncRepository.syncRepository.groupDataByShelter(
+			db,
+			syncData,
+		);
 		console.log(`📊 避難所数: ${groupedData.size}`);
 
-			const shelterResults: {
-				shelterId: number;
-				success: boolean;
-				postsSynced: number;
-				commentsSynced: number;
-				locationTracksSynced: number;
-				mediaSynced: number;
-				errorMessage?: string;
-			}[] = [];
+		const shelterResults: {
+			shelterId: number;
+			success: boolean;
+			postsSynced: number;
+			commentsSynced: number;
+			locationTracksSynced: number;
+			mediaSynced: number;
+			errorMessage?: string;
+		}[] = [];
 
-			let totalPostsSynced = 0;
-			let totalCommentsSynced = 0;
-			let totalTracksSynced = 0;
-			let totalMediaSynced = 0;
-			let overallSuccess = true;
+		let totalPostsSynced = 0;
+		let totalCommentsSynced = 0;
+		let totalTracksSynced = 0;
+		let totalMediaSynced = 0;
+		let overallSuccess = true;
 
 		// 各避難所ごとに同期処理を実行
 		for (const [shelterId, shelterData] of groupedData.entries()) {
-				console.log(
-					`🏠 避難所ID ${shelterId} の同期開始: posts=${shelterData.posts.length}, comments=${shelterData.comments.length}, tracks=${shelterData.locationTracks.length}, media=${shelterData.media.length}`,
-				);
+			console.log(
+				`🏠 避難所ID ${shelterId} の同期開始: posts=${shelterData.posts.length}, comments=${shelterData.comments.length}, tracks=${shelterData.locationTracks.length}, media=${shelterData.media.length}`,
+			);
 
 			let logId: number | null = null;
 
@@ -1081,9 +1152,9 @@ app.post("/api/sync/receive", async (c) => {
 					overallSuccess = false;
 				} else {
 					// 挿入成功
-						console.log(
-							`✅ 避難所ID ${shelterId} のデータ挿入完了: posts=${result.postsSynced}, comments=${result.commentsSynced}, tracks=${result.locationTracksSynced}, media=${result.mediaSynced}`,
-						);
+					console.log(
+						`✅ 避難所ID ${shelterId} のデータ挿入完了: posts=${result.postsSynced}, comments=${result.commentsSynced}, tracks=${result.locationTracksSynced}, media=${result.mediaSynced}`,
+					);
 					await syncRepository.syncRepository.completeSyncLog(
 						db,
 						logId,
@@ -1093,19 +1164,19 @@ app.post("/api/sync/receive", async (c) => {
 						result.mediaSynced,
 					);
 
-						shelterResults.push({
-							shelterId,
-							success: true,
-							postsSynced: result.postsSynced,
-							commentsSynced: result.commentsSynced,
-							locationTracksSynced: result.locationTracksSynced,
-							mediaSynced: result.mediaSynced,
-						});
+					shelterResults.push({
+						shelterId,
+						success: true,
+						postsSynced: result.postsSynced,
+						commentsSynced: result.commentsSynced,
+						locationTracksSynced: result.locationTracksSynced,
+						mediaSynced: result.mediaSynced,
+					});
 
-						totalPostsSynced += result.postsSynced;
-						totalCommentsSynced += result.commentsSynced;
-						totalTracksSynced += result.locationTracksSynced;
-						totalMediaSynced += result.mediaSynced;
+					totalPostsSynced += result.postsSynced;
+					totalCommentsSynced += result.commentsSynced;
+					totalTracksSynced += result.locationTracksSynced;
+					totalMediaSynced += result.mediaSynced;
 				}
 			} catch (error) {
 				// 予期しないエラー
@@ -1124,32 +1195,32 @@ app.post("/api/sync/receive", async (c) => {
 					}
 				}
 
-					shelterResults.push({
-						shelterId,
-						success: false,
-						postsSynced: 0,
-						commentsSynced: 0,
-						locationTracksSynced: 0,
-						mediaSynced: 0,
-						errorMessage: message,
-					});
+				shelterResults.push({
+					shelterId,
+					success: false,
+					postsSynced: 0,
+					commentsSynced: 0,
+					locationTracksSynced: 0,
+					mediaSynced: 0,
+					errorMessage: message,
+				});
 
 				overallSuccess = false;
 			}
 		}
 
-			console.log(
-				`✅ 全避難所の同期完了: 合計 posts=${totalPostsSynced}, comments=${totalCommentsSynced}, tracks=${totalTracksSynced}, media=${totalMediaSynced}`,
-			);
+		console.log(
+			`✅ 全避難所の同期完了: 合計 posts=${totalPostsSynced}, comments=${totalCommentsSynced}, tracks=${totalTracksSynced}, media=${totalMediaSynced}`,
+		);
 
-			return c.json({
-				success: overallSuccess,
-				postsSynced: totalPostsSynced,
-				commentsSynced: totalCommentsSynced,
-				locationTracksSynced: totalTracksSynced,
-				mediaSynced: totalMediaSynced,
-				shelterResults,
-			});
+		return c.json({
+			success: overallSuccess,
+			postsSynced: totalPostsSynced,
+			commentsSynced: totalCommentsSynced,
+			locationTracksSynced: totalTracksSynced,
+			mediaSynced: totalMediaSynced,
+			shelterResults,
+		});
 	} catch (error) {
 		console.error("Sync receive failed", error);
 		const message = error instanceof Error ? error.message : "Unknown error";
