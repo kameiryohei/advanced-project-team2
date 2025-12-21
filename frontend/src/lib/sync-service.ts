@@ -356,7 +356,7 @@ class SyncService {
 	 * 本番APIが利用可能かチェック
 	 */
 	async checkProductionApiAvailable(): Promise<boolean> {
-		const productionApiUrl = import.meta.env.VITE_API_BASE_URL;
+		const productionApiUrl = import.meta.env.VITE_PRODUCTION_API_URL;
 		if (!productionApiUrl) {
 			return false;
 		}
@@ -381,7 +381,7 @@ class SyncService {
 	 * DBデータを本番環境に同期
 	 */
 	async syncDbToProduction(shelterId?: number): Promise<DbSyncResult> {
-		const productionApiUrl = import.meta.env.VITE_API_BASE_URL;
+		const productionApiUrl = import.meta.env.VITE_PRODUCTION_API_URL;
 
 		if (!productionApiUrl) {
 			const errorMsg = "本番API URLが設定されていません";
