@@ -184,6 +184,54 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/api/sync/media": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * メディア同期を実行
+		 * @description ローカルR2の未同期メディアを本番R2に同期します。
+		 */
+		post: {
+			parameters: {
+				query?: never;
+				header?: never;
+				path?: never;
+				cookie?: never;
+			};
+			requestBody?: never;
+			responses: {
+				/** @description メディア同期を実行しました */
+				200: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["SyncMediaResponse"];
+					};
+				};
+				/** @description サーバーエラー */
+				500: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ErrorResponse"];
+					};
+				};
+			};
+		};
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/api/sync/receive": {
 		parameters: {
 			query?: never;
@@ -1011,10 +1059,34 @@ export interface components {
 			commentsSynced: number;
 			/** @description 同期した位置情報トラック数 */
 			locationTracksSynced: number;
+			/** @description 同期したメディア件数 */
+			mediaSynced: number;
 			/** @description 追加のメッセージ */
 			message?: string | null;
 			/** @description エラーメッセージ（失敗時） */
 			error?: string | null;
+		};
+		/** @description メディア同期エラー情報 */
+		SyncMediaError: {
+			/** @description メディアID */
+			mediaId: string;
+			/** @description R2オブジェクトキー */
+			filePath: string;
+			/** @description エラーメッセージ */
+			error: string;
+		};
+		/** @description メディア同期レスポンス */
+		SyncMediaResponse: {
+			/** @description 同期が成功したかどうか */
+			success: boolean;
+			/** @description 同期対象の総件数 */
+			total: number;
+			/** @description 同期したメディア件数 */
+			mediaSynced: number;
+			/** @description 失敗件数 */
+			failed: number;
+			/** @description 失敗詳細 */
+			errors?: components["schemas"]["SyncMediaError"][];
 		};
 		/** @description 同期データ受信リクエスト */
 		SyncReceiveRequest: {
@@ -1024,6 +1096,8 @@ export interface components {
 			comments: components["schemas"]["UnsyncedComment"][];
 			/** @description 同期する位置情報トラックデータ */
 			locationTracks: components["schemas"]["UnsyncedLocationTrack"][];
+			/** @description 同期するメディアデータ */
+			media: components["schemas"]["UnsyncedMedia"][];
 			/** @description 同期元のURL */
 			sourceUrl?: string | null;
 		};
@@ -1037,6 +1111,8 @@ export interface components {
 			commentsSynced: number;
 			/** @description 保存した位置情報トラック数 */
 			locationTracksSynced: number;
+			/** @description 保存したメディア件数 */
+			mediaSynced: number;
 			/** @description 避難所ごとの同期結果 */
 			shelterResults?: components["schemas"]["ShelterSyncResult"][];
 			/** @description エラーメッセージ（失敗時） */
@@ -1103,6 +1179,20 @@ export interface components {
 			/** Format: date-time */
 			updated_at: string;
 		};
+		/** @description 未同期のメディアデータ */
+		UnsyncedMedia: {
+			id: string;
+			post_id: string;
+			file_path: string;
+			media_type: string;
+			file_name?: string | null;
+			/** Format: date-time */
+			created_at: string;
+			/** Format: date-time */
+			updated_at: string;
+			/** Format: date-time */
+			deleted_at?: string | null;
+		};
 		/** @description 同期ログ一覧のレスポンス */
 		SyncLogsResponse: {
 			/** @description 同期ログのリスト */
@@ -1144,6 +1234,8 @@ export interface components {
 			commentsSynced: number;
 			/** @description 同期された位置情報トラック数 */
 			locationTracksSynced: number;
+			/** @description 同期されたメディア件数 */
+			mediaSynced: number;
 			/** @description 同期された合計件数 */
 			totalSynced: number;
 			/** @description エラーメッセージ（失敗時） */

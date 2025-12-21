@@ -38,6 +38,8 @@ export interface SyncLogItem {
   commentsSynced: number;
   /** 同期された位置情報トラック数 */
   locationTracksSynced: number;
+  /** 同期されたメディア件数 */
+  mediaSynced: number;
   /** 同期された合計件数 */
   totalSynced: number;
   /**

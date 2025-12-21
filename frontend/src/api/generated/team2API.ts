@@ -41,6 +41,7 @@ import type {
   SyncExecuteRequest,
   SyncExecuteResponse,
   SyncLogsResponse,
+  SyncMediaResponse,
   SyncReceiveRequest,
   SyncReceiveResponse,
   SyncStatusResponse
@@ -303,6 +304,70 @@ export const usePostApiSyncExecute = <TError = ErrorType<ErrorResponse | ErrorRe
       > => {
 
       const mutationOptions = getPostApiSyncExecuteMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    
+/**
+ * ローカルR2の未同期メディアを本番R2に同期します。
+ * @summary メディア同期を実行
+ */
+export const postApiSyncMedia = (
+    
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return axiosInstance<SyncMediaResponse>(
+      {url: `/api/sync/media`, method: 'POST', signal
+    },
+      options);
+    }
+  
+
+
+export const getPostApiSyncMediaMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postApiSyncMedia>>, TError,void, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof postApiSyncMedia>>, TError,void, TContext> => {
+
+const mutationKey = ['postApiSyncMedia'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postApiSyncMedia>>, void> = () => {
+          
+
+          return  postApiSyncMedia(requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostApiSyncMediaMutationResult = NonNullable<Awaited<ReturnType<typeof postApiSyncMedia>>>
+    
+    export type PostApiSyncMediaMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary メディア同期を実行
+ */
+export const usePostApiSyncMedia = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postApiSyncMedia>>, TError,void, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof postApiSyncMedia>>,
+        TError,
+        void,
+        TContext
+      > => {
+
+      const mutationOptions = getPostApiSyncMediaMutationOptions(options);
 
       return useMutation(mutationOptions, queryClient);
     }

@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS sync_logs (
     posts_synced INTEGER DEFAULT 0,
     comments_synced INTEGER DEFAULT 0,
     location_tracks_synced INTEGER DEFAULT 0,
+    media_synced INTEGER DEFAULT 0,
     error_message TEXT,
     target_url TEXT -- 同期先のURL
 );
