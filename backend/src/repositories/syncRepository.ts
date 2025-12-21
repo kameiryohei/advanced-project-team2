@@ -463,15 +463,43 @@ async function receiveAndInsertSyncData(
 /**
  * 受信データを避難所ごとにグループ化
  */
-function groupDataByShelter(
+async function groupDataByShelter(
+	db: Database,
 	data: SyncReceiveData,
-): Map<number, SyncReceiveData> {
+): Promise<Map<number, SyncReceiveData>> {
 	const grouped = new Map<number, SyncReceiveData>();
 
 	// post_id → shelter_id のマッピングを作成
 	const postIdToShelterId = new Map<string, number>();
 	for (const post of data.posts) {
 		postIdToShelterId.set(post.id, post.shelter_id);
+	}
+
+	// 既存DBから post_id -> shelter_id を補完（コメント/位置情報のみの同期を許可）
+	const missingPostIds = new Set<string>();
+	for (const comment of data.comments) {
+		if (!postIdToShelterId.has(comment.post_id)) {
+			missingPostIds.add(comment.post_id);
+		}
+	}
+	for (const track of data.locationTracks) {
+		if (!postIdToShelterId.has(track.post_id)) {
+			missingPostIds.add(track.post_id);
+		}
+	}
+
+	if (missingPostIds.size > 0) {
+		const ids = Array.from(missingPostIds);
+		const placeholders = ids.map(() => "?").join(", ");
+		const query = `SELECT id, shelter_id FROM posts WHERE id IN (${placeholders})`;
+		const result = await db.prepare(query).bind(...ids).all<{
+			id: string;
+			shelter_id: number;
+		}>();
+
+		for (const row of result.results || []) {
+			postIdToShelterId.set(row.id, row.shelter_id);
+		}
 	}
 
 	// 投稿を避難所ごとにグループ化
@@ -493,7 +521,15 @@ function groupDataByShelter(
 	// コメントを避難所ごとに振り分け
 	for (const comment of data.comments) {
 		const shelterId = postIdToShelterId.get(comment.post_id);
-		if (shelterId !== undefined && grouped.has(shelterId)) {
+		if (shelterId !== undefined) {
+			if (!grouped.has(shelterId)) {
+				grouped.set(shelterId, {
+					posts: [],
+					comments: [],
+					locationTracks: [],
+					sourceUrl: data.sourceUrl,
+				});
+			}
 			const group = grouped.get(shelterId);
 			if (group) {
 				group.comments.push(comment);
@@ -508,7 +544,15 @@ function groupDataByShelter(
 	// 位置情報トラックを避難所ごとに振り分け
 	for (const track of data.locationTracks) {
 		const shelterId = postIdToShelterId.get(track.post_id);
-		if (shelterId !== undefined && grouped.has(shelterId)) {
+		if (shelterId !== undefined) {
+			if (!grouped.has(shelterId)) {
+				grouped.set(shelterId, {
+					posts: [],
+					comments: [],
+					locationTracks: [],
+					sourceUrl: data.sourceUrl,
+				});
+			}
 			const group = grouped.get(shelterId);
 			if (group) {
 				group.locationTracks.push(track);
