@@ -137,7 +137,7 @@ export function SyncLogViewer({ shelterId }: SyncLogViewerProps) {
 			<CardContent>
 				{syncLogsData && syncLogsData.logs.length > 0 ? (
 					<>
-						<div className="rounded-md border">
+						<div className="rounded-md border overflow-x-auto hidden md:block">
 							<Table>
 								<TableHeader>
 									<TableRow>
@@ -149,6 +149,7 @@ export function SyncLogViewer({ shelterId }: SyncLogViewerProps) {
 										<TableHead className="text-right">投稿</TableHead>
 										<TableHead className="text-right">コメント</TableHead>
 										<TableHead className="text-right">位置情報</TableHead>
+										<TableHead className="text-right">メディア</TableHead>
 										<TableHead className="text-right">合計</TableHead>
 									</TableRow>
 								</TableHeader>
@@ -175,6 +176,9 @@ export function SyncLogViewer({ shelterId }: SyncLogViewerProps) {
 											<TableCell className="text-right">
 												{log.locationTracksSynced}
 											</TableCell>
+											<TableCell className="text-right">
+												{log.mediaSynced}
+											</TableCell>
 											<TableCell className="text-right font-medium">
 												{log.totalSynced}
 											</TableCell>
@@ -182,6 +186,55 @@ export function SyncLogViewer({ shelterId }: SyncLogViewerProps) {
 									))}
 								</TableBody>
 							</Table>
+						</div>
+
+						<div className="space-y-3 md:hidden">
+							{syncLogsData.logs.map((log) => (
+								<Card key={log.id}>
+									<CardContent className="space-y-2 p-4">
+										<div className="flex items-center justify-between gap-2">
+											<div className="flex items-center gap-2">
+												{getSyncTypeBadge(log.syncType)}
+												{getStatusBadge(log.status)}
+											</div>
+											<span className="text-sm text-muted-foreground">
+												{formatDateTime(log.startedAt)}
+											</span>
+										</div>
+										{!shelterId && (
+											<div className="text-sm">
+												<span className="text-muted-foreground">避難所: </span>
+												{log.shelterName || "-"}
+											</div>
+										)}
+										<div className="grid grid-cols-2 gap-2 text-sm">
+											<div>
+												<span className="text-muted-foreground">投稿: </span>
+												{log.postsSynced}
+											</div>
+											<div>
+												<span className="text-muted-foreground">コメント: </span>
+												{log.commentsSynced}
+											</div>
+											<div>
+												<span className="text-muted-foreground">位置情報: </span>
+												{log.locationTracksSynced}
+											</div>
+											<div>
+												<span className="text-muted-foreground">メディア: </span>
+												{log.mediaSynced}
+											</div>
+											<div className="col-span-2 font-medium">
+												<span className="text-muted-foreground">合計: </span>
+												{log.totalSynced}
+											</div>
+										</div>
+										<div className="text-xs text-muted-foreground">
+											完了: {formatDateTime(log.completedAt)}
+										</div>
+									</CardContent>
+								</Card>
+							))}
 						</div>
 
 						{/* ページネーション */}
