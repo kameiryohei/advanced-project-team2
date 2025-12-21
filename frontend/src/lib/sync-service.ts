@@ -462,9 +462,17 @@ class SyncService {
 	 */
 	async syncMediaToProduction(): Promise<MediaSyncResult | null> {
 		try {
+			const productionApiUrl = import.meta.env.VITE_PRODUCTION_API_URL;
+			if (!productionApiUrl) {
+				return null;
+			}
+
 			const result = await axiosInstance<MediaSyncResult>({
 				url: "/api/sync/media",
 				method: "POST",
+				data: {
+					targetUrl: productionApiUrl,
+				},
 			});
 
 			if (result.success) {
