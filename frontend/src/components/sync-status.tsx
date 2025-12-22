@@ -14,7 +14,6 @@ export function SyncStatus() {
 	const [syncStatus, setSyncStatus] = useState(syncService.getSyncStatus());
 	const [lastUpdate, setLastUpdate] = useState<string>("");
 	const [dbSyncStats, setDbSyncStats] = useState<DbSyncStats | null>(null);
-	const isLocal = import.meta.env.VITE_NODE_ENV === "local";
 
 	useEffect(() => {
 		const updateStatus = () => {
@@ -25,9 +24,6 @@ export function SyncStatus() {
 
 		// DB同期ステータスを取得
 		const fetchDbSyncStats = async () => {
-			if (!isLocal) {
-				return;
-			}
 			const stats = await syncService.getDbSyncStats();
 			setDbSyncStats(stats);
 		};
@@ -35,16 +31,12 @@ export function SyncStatus() {
 		// Update status every 30 seconds
 		const interval = setInterval(() => {
 			updateStatus();
-			if (isLocal) {
-				fetchDbSyncStats();
-			}
+			fetchDbSyncStats();
 		}, 30000);
 
 		// 初回取得
 		updateStatus();
-		if (isLocal) {
-			fetchDbSyncStats();
-		}
+		fetchDbSyncStats();
 
 		// Listen for sync completion
 		syncService.onSyncComplete(() => {
@@ -72,18 +64,15 @@ export function SyncStatus() {
 			</div>
 
 			{/* DB Unsynced Data Count */}
-			{isLocal &&
-				!syncStatus.isOnline &&
-				dbSyncStats &&
-				dbSyncStats.totalUnsynced > 0 && (
-					<Badge
-						variant="outline"
-						className="flex items-center gap-1 border-orange-500 text-orange-600"
-					>
-						<Database className="h-3 w-3" />
-						<span>未同期: {dbSyncStats.totalUnsynced}件</span>
-					</Badge>
-				)}
+			{dbSyncStats && dbSyncStats.totalUnsynced > 0 && (
+				<Badge
+					variant="outline"
+					className="flex items-center gap-1 border-orange-500 text-orange-600"
+				>
+					<Database className="h-3 w-3" />
+					<span>未同期: {dbSyncStats.totalUnsynced}件</span>
+				</Badge>
+			)}
 
 			{/* Pending Operations (localStorage) */}
 			{syncStatus.pendingOperations > 0 && (
@@ -102,18 +91,15 @@ export function SyncStatus() {
 			)}
 
 			{/* Auto Sync Info */}
-			{isLocal &&
-				!syncStatus.isOnline &&
-				dbSyncStats &&
-				dbSyncStats.totalUnsynced > 0 && (
-					<Badge
-						variant="outline"
-						className="flex items-center gap-1 text-muted-foreground"
-					>
-						<AlertCircle className="h-3 w-3" />
-						<span>オンライン復帰時に自動同期されます</span>
-					</Badge>
-				)}
+			{!syncStatus.isOnline && dbSyncStats && dbSyncStats.totalUnsynced > 0 && (
+				<Badge
+					variant="outline"
+					className="flex items-center gap-1 text-muted-foreground"
+				>
+					<AlertCircle className="h-3 w-3" />
+					<span>オンライン復帰時に自動同期されます</span>
+				</Badge>
+			)}
 
 			{/* Last Update */}
 			{lastUpdate && (

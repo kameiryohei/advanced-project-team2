@@ -52,14 +52,6 @@ class SyncService {
 	private startupSyncTriggered = false;
 	private readonly pendingOperationsKey = "pending_operations";
 
-	private setEnvironmentClass(): void {
-		if (typeof document === "undefined") {
-			return;
-		}
-		const isLocal = import.meta.env.VITE_NODE_ENV === "local";
-		document.documentElement.classList.toggle("local-env", isLocal);
-	}
-
 	private constructor() {
 		// Listen for online/offline events
 		window.addEventListener("online", this.handleOnline.bind(this));
@@ -67,7 +59,6 @@ class SyncService {
 
 		// Load pending operations from localStorage
 		this.loadPendingOperations();
-		this.setEnvironmentClass();
 
 		// Fire once on app startup in production
 		void this.triggerStartupSync();

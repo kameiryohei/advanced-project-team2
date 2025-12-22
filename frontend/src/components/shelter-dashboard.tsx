@@ -7,6 +7,7 @@ import {
 	MapPin,
 	MessageSquare,
 	User,
+	Users,
 	Video,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -56,18 +57,17 @@ interface ShelterDashboardProps {
 const getStatusColor = (status: string | null | undefined) => {
 	switch (status) {
 		case "緊急":
-			return "bg-red-600 text-white"; // 赤色（緊急）
+			return "bg-destructive text-destructive-foreground"; // 赤色（緊急）
 		case "重要":
-			return "bg-amber-400 text-slate-900"; // オレンジ色（重要）
+			return "bg-secondary text-secondary-foreground"; // オレンジ色（重要）
 		case "通常":
-			return "bg-emerald-600 text-white"; // 緑色（通常）
+			return "bg-chart-1 text-foreground"; // 緑色（通常）
 		default:
 			return "bg-muted text-muted-foreground";
 	}
 };
 
 export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
-	const [isOnline, setIsOnline] = useState(navigator.onLine);
 	const [selectedReport, setSelectedReport] = useState<string | null>(null);
 	const [showReportForm, setShowReportForm] = useState(false);
 	const [reports, setReports] = useState<Report[]>([]);
@@ -79,20 +79,6 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 	const { data: sheltersData } = useGetShelters();
 	const { data: shelterDetails } = useGetSheltersId(currentShelterId);
 	const { data: shelterPosts } = useGetSheltersIdPosts(currentShelterId);
-
-	// 現在の避難所IDをローカルストレージに保存（自動同期で使用）
-	useEffect(() => {
-		const handleOnline = () => setIsOnline(true);
-		const handleOffline = () => setIsOnline(false);
-
-		window.addEventListener("online", handleOnline);
-		window.addEventListener("offline", handleOffline);
-
-		return () => {
-			window.removeEventListener("online", handleOnline);
-			window.removeEventListener("offline", handleOffline);
-		};
-	}, []);
 
 	// 現在の避難所IDをローカルストレージに保存（自動同期で使用）
 	useEffect(() => {
@@ -214,15 +200,15 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">重要報告</CardTitle>
-						<AlertTriangle className="h-4 w-4 text-destructive" />
+						<CardTitle className="text-sm font-medium">避難所数</CardTitle>
+						<Users className="h-4 w-4 text-muted-foreground" />
 					</CardHeader>
 					<CardContent>
-						<div className="text-2xl font-bold text-destructive">
-							{reports.filter((r) => r.status === "重要").length}件
+						<div className="text-2xl font-bold">
+							{sheltersData ? `${sheltersData.shelterCount}箇所` : "-"}
 						</div>
 						<p className="text-xs text-muted-foreground">
-							重要ステータスの報告数
+							{sheltersData ? "API取得済み" : "データ取得中..."}
 						</p>
 					</CardContent>
 				</Card>
@@ -249,16 +235,16 @@ export function ShelterDashboard({ shelterId }: ShelterDashboardProps) {
 
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">
-							オンライン / オフライン状態
-						</CardTitle>
+						<CardTitle className="text-sm font-medium">API接続状況</CardTitle>
 						<Clock className="h-4 w-4 text-muted-foreground" />
 					</CardHeader>
 					<CardContent>
-						<div className="text-2xl font-bold">
-							{isOnline ? "オンライン" : "オフライン"}
+						<div className="text-2xl font-bold text-green-600">
+							{shelterDetails ? "接続中" : "未接続"}
 						</div>
-						<p className="text-xs text-muted-foreground">現在の接続状態</p>
+						<p className="text-xs text-muted-foreground">
+							{shelterDetails ? `${shelterDetails.name}` : "APIデータ取得待ち"}
+						</p>
 					</CardContent>
 				</Card>
 			</div>
