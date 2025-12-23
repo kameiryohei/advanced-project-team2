@@ -81,6 +81,11 @@ CREATE INDEX IF NOT EXISTS idx_sync_logs_status ON sync_logs(status);
 CREATE INDEX IF NOT EXISTS idx_sync_logs_started_at ON sync_logs(started_at);
 CREATE INDEX IF NOT EXISTS idx_sync_logs_shelter_id ON sync_logs(shelter_id);
 
+CREATE TABLE IF NOT EXISTS sync_state (
+    scope_key TEXT PRIMARY KEY,
+    last_pulled_at DATETIME NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);
 CREATE INDEX IF NOT EXISTS idx_post_location_tracks_post_id ON post_location_tracks(post_id);
 
