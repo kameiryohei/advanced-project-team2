@@ -114,6 +114,78 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /api/sync/pull:
+    get:
+      tags:
+        - 同期
+      summary: 本番DBの差分データを取得
+      description: 指定した避難所の差分データを取得します。
+      parameters:
+        - name: since
+          in: query
+          required: false
+          description: 取得開始日時（updated_at基準）
+          schema:
+            type: string
+            format: date-time
+        - name: shelterId
+          in: query
+          required: false
+          description: 避難所ID（未指定時は環境変数）
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: 差分データを取得しました
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncPullResponse"
+        "400":
+          description: リクエストが不正です
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/sync/pull/execute:
+    post:
+      tags:
+        - 同期
+      summary: 差分Pullを実行
+      description: 本番DBからローカルDBへ差分データを同期します。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncPullExecuteRequest"
+      responses:
+        "200":
+          description: 差分Pullを実行しました
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncPullExecuteResponse"
+        "400":
+          description: リクエストが不正です
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /api/sync/media:
     post:
       tags:
@@ -1087,6 +1159,90 @@ components:
         - commentsSynced
         - locationTracksSynced
         - mediaSynced
+
+    SyncPullResponse:
+      type: object
+      description: 差分Pullのレスポンス
+      properties:
+        serverTime:
+          type: string
+          format: date-time
+          description: 本番サーバーの現在時刻
+        posts:
+          type: array
+          description: 差分投稿データ
+          items:
+            $ref: "#/components/schemas/UnsyncedPost"
+        comments:
+          type: array
+          description: 差分コメントデータ
+          items:
+            $ref: "#/components/schemas/UnsyncedComment"
+        locationTracks:
+          type: array
+          description: 差分位置情報トラックデータ
+          items:
+            $ref: "#/components/schemas/UnsyncedLocationTrack"
+        media:
+          type: array
+          description: 差分メディアデータ
+          items:
+            $ref: "#/components/schemas/UnsyncedMedia"
+      required:
+        - serverTime
+        - posts
+        - comments
+        - locationTracks
+        - media
+
+    SyncPullExecuteRequest:
+      type: object
+      description: 差分Pull実行リクエスト
+      properties:
+        targetUrl:
+          type: string
+          description: 同期先のAPI URL
+        shelterId:
+          type: integer
+          nullable: true
+          description: 避難所ID（オプション）
+      required:
+        - targetUrl
+
+    SyncPullExecuteResponse:
+      type: object
+      description: 差分Pull実行レスポンス
+      properties:
+        success:
+          type: boolean
+          description: 同期が成功したかどうか
+        postsPulled:
+          type: integer
+          description: 取得した投稿数
+        commentsPulled:
+          type: integer
+          description: 取得したコメント数
+        locationTracksPulled:
+          type: integer
+          description: 取得した位置情報トラック数
+        mediaPulled:
+          type: integer
+          description: 取得したメディア件数
+        lastPulledAt:
+          type: string
+          format: date-time
+          description: 最終Pull時刻
+        error:
+          type: string
+          nullable: true
+          description: エラーメッセージ（失敗時）
+      required:
+        - success
+        - postsPulled
+        - commentsPulled
+        - locationTracksPulled
+        - mediaPulled
+        - lastPulledAt
 
     SyncMediaError:
       type: object

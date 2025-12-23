@@ -30,6 +30,7 @@ import type {
   ErrorResponse,
   GetApiGeocodeReverseParams,
   GetApiSyncLogsParams,
+  GetApiSyncPullParams,
   GetPostsIdCommentsParams,
   PostCommentsResponse,
   PostDetailResponse,
@@ -45,6 +46,9 @@ import type {
   SyncMediaReceiveRequest,
   SyncMediaReceiveResponse,
   SyncMediaResponse,
+  SyncPullExecuteRequest,
+  SyncPullExecuteResponse,
+  SyncPullResponse,
   SyncReceiveRequest,
   SyncReceiveResponse,
   SyncStatusResponse
@@ -307,6 +311,166 @@ export const usePostApiSyncExecute = <TError = ErrorType<ErrorResponse | ErrorRe
       > => {
 
       const mutationOptions = getPostApiSyncExecuteMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    
+/**
+ * 指定した避難所の差分データを取得します。
+ * @summary 本番DBの差分データを取得
+ */
+export const getApiSyncPull = (
+    params?: GetApiSyncPullParams,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return axiosInstance<SyncPullResponse>(
+      {url: `/api/sync/pull`, method: 'GET',
+        params, signal
+    },
+      options);
+    }
+  
+
+
+
+export const getGetApiSyncPullQueryKey = (params?: GetApiSyncPullParams,) => {
+    return [
+    `/api/sync/pull`, ...(params ? [params]: [])
+    ] as const;
+    }
+
+    
+export const getGetApiSyncPullQueryOptions = <TData = Awaited<ReturnType<typeof getApiSyncPull>>, TError = ErrorType<ErrorResponse | ErrorResponse>>(params?: GetApiSyncPullParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiSyncPull>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetApiSyncPullQueryKey(params);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getApiSyncPull>>> = ({ signal }) => getApiSyncPull(params, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getApiSyncPull>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetApiSyncPullQueryResult = NonNullable<Awaited<ReturnType<typeof getApiSyncPull>>>
+export type GetApiSyncPullQueryError = ErrorType<ErrorResponse | ErrorResponse>
+
+
+export function useGetApiSyncPull<TData = Awaited<ReturnType<typeof getApiSyncPull>>, TError = ErrorType<ErrorResponse | ErrorResponse>>(
+ params: undefined |  GetApiSyncPullParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiSyncPull>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getApiSyncPull>>,
+          TError,
+          Awaited<ReturnType<typeof getApiSyncPull>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetApiSyncPull<TData = Awaited<ReturnType<typeof getApiSyncPull>>, TError = ErrorType<ErrorResponse | ErrorResponse>>(
+ params?: GetApiSyncPullParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiSyncPull>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getApiSyncPull>>,
+          TError,
+          Awaited<ReturnType<typeof getApiSyncPull>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetApiSyncPull<TData = Awaited<ReturnType<typeof getApiSyncPull>>, TError = ErrorType<ErrorResponse | ErrorResponse>>(
+ params?: GetApiSyncPullParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiSyncPull>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 本番DBの差分データを取得
+ */
+
+export function useGetApiSyncPull<TData = Awaited<ReturnType<typeof getApiSyncPull>>, TError = ErrorType<ErrorResponse | ErrorResponse>>(
+ params?: GetApiSyncPullParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiSyncPull>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetApiSyncPullQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+/**
+ * 本番DBからローカルDBへ差分データを同期します。
+ * @summary 差分Pullを実行
+ */
+export const postApiSyncPullExecute = (
+    syncPullExecuteRequest: SyncPullExecuteRequest,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return axiosInstance<SyncPullExecuteResponse>(
+      {url: `/api/sync/pull/execute`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: syncPullExecuteRequest, signal
+    },
+      options);
+    }
+  
+
+
+export const getPostApiSyncPullExecuteMutationOptions = <TError = ErrorType<ErrorResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postApiSyncPullExecute>>, TError,{data: SyncPullExecuteRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof postApiSyncPullExecute>>, TError,{data: SyncPullExecuteRequest}, TContext> => {
+
+const mutationKey = ['postApiSyncPullExecute'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postApiSyncPullExecute>>, {data: SyncPullExecuteRequest}> = (props) => {
+          const {data} = props ?? {};
+
+          return  postApiSyncPullExecute(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostApiSyncPullExecuteMutationResult = NonNullable<Awaited<ReturnType<typeof postApiSyncPullExecute>>>
+    export type PostApiSyncPullExecuteMutationBody = SyncPullExecuteRequest
+    export type PostApiSyncPullExecuteMutationError = ErrorType<ErrorResponse | ErrorResponse>
+
+    /**
+ * @summary 差分Pullを実行
+ */
+export const usePostApiSyncPullExecute = <TError = ErrorType<ErrorResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postApiSyncPullExecute>>, TError,{data: SyncPullExecuteRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof postApiSyncPullExecute>>,
+        TError,
+        {data: SyncPullExecuteRequest},
+        TContext
+      > => {
+
+      const mutationOptions = getPostApiSyncPullExecuteMutationOptions(options);
 
       return useMutation(mutationOptions, queryClient);
     }

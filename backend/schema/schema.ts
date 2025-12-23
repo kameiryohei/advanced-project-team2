@@ -184,6 +184,129 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/api/sync/pull": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * 本番DBの差分データを取得
+		 * @description 指定した避難所の差分データを取得します。
+		 */
+		get: {
+			parameters: {
+				query?: {
+					/** @description 取得開始日時（updated_at基準） */
+					since?: string;
+					/** @description 避難所ID（未指定時は環境変数） */
+					shelterId?: number;
+				};
+				header?: never;
+				path?: never;
+				cookie?: never;
+			};
+			requestBody?: never;
+			responses: {
+				/** @description 差分データを取得しました */
+				200: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["SyncPullResponse"];
+					};
+				};
+				/** @description リクエストが不正です */
+				400: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ErrorResponse"];
+					};
+				};
+				/** @description サーバーエラー */
+				500: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ErrorResponse"];
+					};
+				};
+			};
+		};
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/sync/pull/execute": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * 差分Pullを実行
+		 * @description 本番DBからローカルDBへ差分データを同期します。
+		 */
+		post: {
+			parameters: {
+				query?: never;
+				header?: never;
+				path?: never;
+				cookie?: never;
+			};
+			requestBody: {
+				content: {
+					"application/json": components["schemas"]["SyncPullExecuteRequest"];
+				};
+			};
+			responses: {
+				/** @description 差分Pullを実行しました */
+				200: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["SyncPullExecuteResponse"];
+					};
+				};
+				/** @description リクエストが不正です */
+				400: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ErrorResponse"];
+					};
+				};
+				/** @description サーバーエラー */
+				500: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ErrorResponse"];
+					};
+				};
+			};
+		};
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/api/sync/media": {
 		parameters: {
 			query?: never;
@@ -1128,6 +1251,49 @@ export interface components {
 			mediaSynced: number;
 			/** @description 追加のメッセージ */
 			message?: string | null;
+			/** @description エラーメッセージ（失敗時） */
+			error?: string | null;
+		};
+		/** @description 差分Pullのレスポンス */
+		SyncPullResponse: {
+			/**
+			 * Format: date-time
+			 * @description 本番サーバーの現在時刻
+			 */
+			serverTime: string;
+			/** @description 差分投稿データ */
+			posts: components["schemas"]["UnsyncedPost"][];
+			/** @description 差分コメントデータ */
+			comments: components["schemas"]["UnsyncedComment"][];
+			/** @description 差分位置情報トラックデータ */
+			locationTracks: components["schemas"]["UnsyncedLocationTrack"][];
+			/** @description 差分メディアデータ */
+			media: components["schemas"]["UnsyncedMedia"][];
+		};
+		/** @description 差分Pull実行リクエスト */
+		SyncPullExecuteRequest: {
+			/** @description 同期先のAPI URL */
+			targetUrl: string;
+			/** @description 避難所ID（オプション） */
+			shelterId?: number | null;
+		};
+		/** @description 差分Pull実行レスポンス */
+		SyncPullExecuteResponse: {
+			/** @description 同期が成功したかどうか */
+			success: boolean;
+			/** @description 取得した投稿数 */
+			postsPulled: number;
+			/** @description 取得したコメント数 */
+			commentsPulled: number;
+			/** @description 取得した位置情報トラック数 */
+			locationTracksPulled: number;
+			/** @description 取得したメディア件数 */
+			mediaPulled: number;
+			/**
+			 * Format: date-time
+			 * @description 最終Pull時刻
+			 */
+			lastPulledAt: string;
 			/** @description エラーメッセージ（失敗時） */
 			error?: string | null;
 		};
