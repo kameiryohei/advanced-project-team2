@@ -307,6 +307,75 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/api/sync/pull/media": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * メディアファイルをダウンロード
+		 * @description 指定したfile_pathのメディアファイルを本番R2から取得します。
+		 */
+		get: {
+			parameters: {
+				query: {
+					/** @description メディアファイルのパス */
+					filePath: string;
+				};
+				header?: never;
+				path?: never;
+				cookie?: never;
+			};
+			requestBody?: never;
+			responses: {
+				/** @description メディアファイル */
+				200: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/octet-stream": string;
+					};
+				};
+				/** @description リクエストが不正です */
+				400: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ErrorResponse"];
+					};
+				};
+				/** @description メディアが見つかりません */
+				404: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ErrorResponse"];
+					};
+				};
+				/** @description サーバーエラー */
+				500: {
+					headers: {
+						[name: string]: unknown;
+					};
+					content: {
+						"application/json": components["schemas"]["ErrorResponse"];
+					};
+				};
+			};
+		};
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/api/sync/media": {
 		parameters: {
 			query?: never;
@@ -1289,6 +1358,10 @@ export interface components {
 			locationTracksPulled: number;
 			/** @description 取得したメディア件数 */
 			mediaPulled: number;
+			/** @description 同期したメディアファイル数 */
+			mediaSynced: number;
+			/** @description 同期に失敗したメディアファイル数 */
+			mediaFailed: number;
 			/**
 			 * Format: date-time
 			 * @description 最終Pull時刻

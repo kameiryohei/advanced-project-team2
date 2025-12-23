@@ -19,6 +19,10 @@ export interface SyncPullExecuteResponse {
   locationTracksPulled: number;
   /** 取得したメディア件数 */
   mediaPulled: number;
+  /** 同期したメディアファイル数 */
+  mediaSynced: number;
+  /** 同期に失敗したメディアファイル数 */
+  mediaFailed: number;
   /** 最終Pull時刻 */
   lastPulledAt: string;
   /**
