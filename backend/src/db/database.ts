@@ -8,6 +8,7 @@ export type Bindings = {
 	R2_ACCESS_KEY_ID: string;
 	R2_SECRET_ACCESS_KEY: string;
 	NODE_ENV?: string;
+	DEFAULT_SHELTER_ID?: string;
 };
 
 export const dbConnect = (env: Bindings): D1Database =>
