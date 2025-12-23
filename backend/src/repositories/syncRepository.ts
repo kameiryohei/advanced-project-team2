@@ -108,6 +108,15 @@ export type SyncReceiveData = {
 	sourceUrl?: string;
 };
 
+// 差分Pullレスポンス型
+export type SyncPullData = {
+	serverTime: string;
+	posts: UnsyncedPost[];
+	comments: UnsyncedComment[];
+	locationTracks: UnsyncedLocationTrack[];
+	media: UnsyncedMedia[];
+};
+
 // 避難所ごとの同期結果型
 export type ShelterSyncResult = {
 	shelterId: number;
@@ -208,6 +217,122 @@ async function fetchMediaByPostIds(
 }
 
 /**
+ * 差分Pull用: 投稿を取得
+ */
+async function fetchPostsForPull(
+	db: Database,
+	shelterId: number,
+	since?: string | null,
+): Promise<UnsyncedPost[]> {
+	let query = `
+		SELECT 
+			id, author_name, shelter_id, content, latitude, longitude,
+			posted_at, created_at, updated_at, is_free_chat, status
+		FROM posts
+		WHERE shelter_id = ?
+	`;
+	const params: Array<string | number> = [shelterId];
+	if (since) {
+		query += " AND updated_at > ?";
+		params.push(since);
+	}
+	query += " ORDER BY updated_at ASC";
+
+	const result = await db
+		.prepare(query)
+		.bind(...params)
+		.all<UnsyncedPost>();
+	return result.results || [];
+}
+
+/**
+ * 差分Pull用: コメントを取得
+ */
+async function fetchCommentsForPull(
+	db: Database,
+	shelterId: number,
+	since?: string | null,
+): Promise<UnsyncedComment[]> {
+	let query = `
+		SELECT 
+			c.id, c.post_id, c.author_name, c.content, c.status, c.created_at, c.updated_at
+		FROM comments c
+		INNER JOIN posts p ON c.post_id = p.id
+		WHERE p.shelter_id = ?
+	`;
+	const params: Array<string | number> = [shelterId];
+	if (since) {
+		query += " AND c.updated_at > ?";
+		params.push(since);
+	}
+	query += " ORDER BY c.updated_at ASC";
+
+	const result = await db
+		.prepare(query)
+		.bind(...params)
+		.all<UnsyncedComment>();
+	return result.results || [];
+}
+
+/**
+ * 差分Pull用: 位置情報トラックを取得
+ */
+async function fetchLocationTracksForPull(
+	db: Database,
+	shelterId: number,
+	since?: string | null,
+): Promise<UnsyncedLocationTrack[]> {
+	let query = `
+		SELECT 
+			t.id, t.post_id, t.recorded_at, t.latitude, t.longitude, t.created_at, t.updated_at
+		FROM post_location_tracks t
+		INNER JOIN posts p ON t.post_id = p.id
+		WHERE p.shelter_id = ?
+	`;
+	const params: Array<string | number> = [shelterId];
+	if (since) {
+		query += " AND t.updated_at > ?";
+		params.push(since);
+	}
+	query += " ORDER BY t.updated_at ASC";
+
+	const result = await db
+		.prepare(query)
+		.bind(...params)
+		.all<UnsyncedLocationTrack>();
+	return result.results || [];
+}
+
+/**
+ * 差分Pull用: メディアを取得
+ */
+async function fetchMediaForPull(
+	db: Database,
+	shelterId: number,
+	since?: string | null,
+): Promise<UnsyncedMedia[]> {
+	let query = `
+		SELECT 
+			m.id, m.post_id, m.file_path, m.media_type, m.file_name, m.created_at, m.updated_at, m.deleted_at
+		FROM media m
+		INNER JOIN posts p ON m.post_id = p.id
+		WHERE p.shelter_id = ?
+	`;
+	const params: Array<string | number> = [shelterId];
+	if (since) {
+		query += " AND m.updated_at > ?";
+		params.push(since);
+	}
+	query += " ORDER BY m.updated_at ASC";
+
+	const result = await db
+		.prepare(query)
+		.bind(...params)
+		.all<UnsyncedMedia>();
+	return result.results || [];
+}
+
+/**
  * 投稿の同期フラグを更新
  */
 async function markPostsAsSynced(
@@ -270,6 +395,215 @@ async function markMediaAsSynced(
 		.prepare(query)
 		.bind(...mediaIds)
 		.run();
+}
+
+/**
+ * 差分Pull用: 投稿をupsert
+ */
+async function upsertPostFromPull(
+	db: Database,
+	post: UnsyncedPost,
+): Promise<void> {
+	const query = `
+		INSERT INTO posts (
+			id, author_name, shelter_id, content, latitude, longitude,
+			posted_at, created_at, updated_at, is_free_chat, status, is_synced
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+		ON CONFLICT(id) DO UPDATE SET
+			author_name = excluded.author_name,
+			shelter_id = excluded.shelter_id,
+			content = excluded.content,
+			latitude = excluded.latitude,
+			longitude = excluded.longitude,
+			posted_at = excluded.posted_at,
+			updated_at = excluded.updated_at,
+			is_free_chat = excluded.is_free_chat,
+			status = excluded.status,
+			is_synced = 1
+	`;
+	await db
+		.prepare(query)
+		.bind(
+			post.id,
+			post.author_name,
+			post.shelter_id,
+			post.content,
+			post.latitude,
+			post.longitude,
+			post.posted_at,
+			post.created_at,
+			post.updated_at,
+			post.is_free_chat,
+			post.status,
+		)
+		.run();
+}
+
+/**
+ * 差分Pull用: コメントをupsert
+ */
+async function upsertCommentFromPull(
+	db: Database,
+	comment: UnsyncedComment,
+): Promise<void> {
+	const query = `
+		INSERT INTO comments (
+			id, post_id, author_name, content, status, created_at, updated_at, is_synced
+		) VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+		ON CONFLICT(id) DO UPDATE SET
+			post_id = excluded.post_id,
+			author_name = excluded.author_name,
+			content = excluded.content,
+			status = excluded.status,
+			updated_at = excluded.updated_at,
+			is_synced = 1
+	`;
+	await db
+		.prepare(query)
+		.bind(
+			comment.id,
+			comment.post_id,
+			comment.author_name,
+			comment.content,
+			comment.status,
+			comment.created_at,
+			comment.updated_at,
+		)
+		.run();
+}
+
+/**
+ * 差分Pull用: 位置情報トラックをupsert
+ */
+async function upsertLocationTrackFromPull(
+	db: Database,
+	track: UnsyncedLocationTrack,
+): Promise<void> {
+	const query = `
+		INSERT INTO post_location_tracks (
+			id, post_id, recorded_at, latitude, longitude, created_at, updated_at, is_synced
+		) VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+		ON CONFLICT(id) DO UPDATE SET
+			post_id = excluded.post_id,
+			recorded_at = excluded.recorded_at,
+			latitude = excluded.latitude,
+			longitude = excluded.longitude,
+			updated_at = excluded.updated_at,
+			is_synced = 1
+	`;
+	await db
+		.prepare(query)
+		.bind(
+			track.id,
+			track.post_id,
+			track.recorded_at,
+			track.latitude,
+			track.longitude,
+			track.created_at,
+			track.updated_at,
+		)
+		.run();
+}
+
+/**
+ * 差分Pull用: メディアをupsert
+ */
+async function upsertMediaFromPull(
+	db: Database,
+	media: UnsyncedMedia,
+): Promise<void> {
+	const query = `
+		INSERT INTO media (
+			id, post_id, file_path, media_type, file_name,
+			created_at, updated_at, deleted_at, url, is_synced
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, 1)
+		ON CONFLICT(id) DO UPDATE SET
+			post_id = excluded.post_id,
+			file_path = excluded.file_path,
+			media_type = excluded.media_type,
+			file_name = excluded.file_name,
+			updated_at = excluded.updated_at,
+			deleted_at = excluded.deleted_at,
+			is_synced = 1
+	`;
+	await db
+		.prepare(query)
+		.bind(
+			media.id,
+			media.post_id,
+			media.file_path,
+			media.media_type,
+			media.file_name,
+			media.created_at,
+			media.updated_at,
+			media.deleted_at,
+		)
+		.run();
+}
+
+/**
+ * 差分PullデータをローカルDBに適用
+ */
+async function applyPulledData(
+	db: Database,
+	data: SyncPullData,
+): Promise<{
+	postsApplied: number;
+	commentsApplied: number;
+	locationTracksApplied: number;
+	mediaApplied: number;
+}> {
+	for (const post of data.posts) {
+		await upsertPostFromPull(db, post);
+	}
+	for (const comment of data.comments) {
+		await upsertCommentFromPull(db, comment);
+	}
+	for (const track of data.locationTracks) {
+		await upsertLocationTrackFromPull(db, track);
+	}
+	for (const media of data.media) {
+		await upsertMediaFromPull(db, media);
+	}
+
+	return {
+		postsApplied: data.posts.length,
+		commentsApplied: data.comments.length,
+		locationTracksApplied: data.locationTracks.length,
+		mediaApplied: data.media.length,
+	};
+}
+
+/**
+ * 差分Pullの最終取得時刻を取得
+ */
+async function getLastPulledAt(
+	db: Database,
+	scopeKey: string,
+): Promise<string | null> {
+	const query = `SELECT last_pulled_at FROM sync_state WHERE scope_key = ?`;
+	const result = await db
+		.prepare(query)
+		.bind(scopeKey)
+		.first<{ last_pulled_at: string }>();
+	return result?.last_pulled_at ?? null;
+}
+
+/**
+ * 差分Pullの最終取得時刻を更新
+ */
+async function setLastPulledAt(
+	db: Database,
+	scopeKey: string,
+	lastPulledAt: string,
+): Promise<void> {
+	const query = `
+		INSERT INTO sync_state (scope_key, last_pulled_at)
+		VALUES (?, ?)
+		ON CONFLICT(scope_key) DO UPDATE SET
+			last_pulled_at = excluded.last_pulled_at
+	`;
+	await db.prepare(query).bind(scopeKey, lastPulledAt).run();
 }
 
 /**
@@ -800,10 +1134,17 @@ export const syncRepository = {
 	fetchUnsyncedLocationTracks,
 	fetchUnsyncedMedia,
 	fetchMediaByPostIds,
+	fetchPostsForPull,
+	fetchCommentsForPull,
+	fetchLocationTracksForPull,
+	fetchMediaForPull,
 	markPostsAsSynced,
 	markCommentsAsSynced,
 	markLocationTracksAsSynced,
 	markMediaAsSynced,
+	applyPulledData,
+	getLastPulledAt,
+	setLastPulledAt,
 	getSyncStats,
 	createSyncLog,
 	completeSyncLog,
