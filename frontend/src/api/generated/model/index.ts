@@ -18,6 +18,7 @@ export * from './createPostResponsePostStatus';
 export * from './errorResponse';
 export * from './getApiGeocodeReverseParams';
 export * from './getApiSyncLogsParams';
+export * from './getApiSyncPullMediaParams';
 export * from './getApiSyncPullParams';
 export * from './getPostsIdCommentsParams';
 export * from './locationTrackPoint';

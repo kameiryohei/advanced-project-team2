@@ -186,6 +186,46 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /api/sync/pull/media:
+    get:
+      tags:
+        - 同期
+      summary: メディアファイルをダウンロード
+      description: 指定したfile_pathのメディアファイルを本番R2から取得します。
+      parameters:
+        - name: filePath
+          in: query
+          required: true
+          schema:
+            type: string
+          description: メディアファイルのパス
+      responses:
+        "200":
+          description: メディアファイル
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: リクエストが不正です
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: メディアが見つかりません
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /api/sync/media:
     post:
       tags:
@@ -1228,6 +1268,12 @@ components:
         mediaPulled:
           type: integer
           description: 取得したメディア件数
+        mediaSynced:
+          type: integer
+          description: 同期したメディアファイル数
+        mediaFailed:
+          type: integer
+          description: 同期に失敗したメディアファイル数
         lastPulledAt:
           type: string
           format: date-time
@@ -1242,6 +1288,8 @@ components:
         - commentsPulled
         - locationTracksPulled
         - mediaPulled
+        - mediaSynced
+        - mediaFailed
         - lastPulledAt
 
     SyncMediaError:

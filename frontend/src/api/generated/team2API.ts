@@ -30,6 +30,7 @@ import type {
   ErrorResponse,
   GetApiGeocodeReverseParams,
   GetApiSyncLogsParams,
+  GetApiSyncPullMediaParams,
   GetApiSyncPullParams,
   GetPostsIdCommentsParams,
   PostCommentsResponse,
@@ -475,6 +476,101 @@ export const usePostApiSyncPullExecute = <TError = ErrorType<ErrorResponse | Err
       return useMutation(mutationOptions, queryClient);
     }
     
+/**
+ * 指定したfile_pathのメディアファイルを本番R2から取得します。
+ * @summary メディアファイルをダウンロード
+ */
+export const getApiSyncPullMedia = (
+    params: GetApiSyncPullMediaParams,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return axiosInstance<Blob>(
+      {url: `/api/sync/pull/media`, method: 'GET',
+        params,
+        responseType: 'blob', signal
+    },
+      options);
+    }
+  
+
+
+
+export const getGetApiSyncPullMediaQueryKey = (params?: GetApiSyncPullMediaParams,) => {
+    return [
+    `/api/sync/pull/media`, ...(params ? [params]: [])
+    ] as const;
+    }
+
+    
+export const getGetApiSyncPullMediaQueryOptions = <TData = Awaited<ReturnType<typeof getApiSyncPullMedia>>, TError = ErrorType<ErrorResponse | ErrorResponse | ErrorResponse>>(params: GetApiSyncPullMediaParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiSyncPullMedia>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetApiSyncPullMediaQueryKey(params);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getApiSyncPullMedia>>> = ({ signal }) => getApiSyncPullMedia(params, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getApiSyncPullMedia>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetApiSyncPullMediaQueryResult = NonNullable<Awaited<ReturnType<typeof getApiSyncPullMedia>>>
+export type GetApiSyncPullMediaQueryError = ErrorType<ErrorResponse | ErrorResponse | ErrorResponse>
+
+
+export function useGetApiSyncPullMedia<TData = Awaited<ReturnType<typeof getApiSyncPullMedia>>, TError = ErrorType<ErrorResponse | ErrorResponse | ErrorResponse>>(
+ params: GetApiSyncPullMediaParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiSyncPullMedia>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getApiSyncPullMedia>>,
+          TError,
+          Awaited<ReturnType<typeof getApiSyncPullMedia>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetApiSyncPullMedia<TData = Awaited<ReturnType<typeof getApiSyncPullMedia>>, TError = ErrorType<ErrorResponse | ErrorResponse | ErrorResponse>>(
+ params: GetApiSyncPullMediaParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiSyncPullMedia>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getApiSyncPullMedia>>,
+          TError,
+          Awaited<ReturnType<typeof getApiSyncPullMedia>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetApiSyncPullMedia<TData = Awaited<ReturnType<typeof getApiSyncPullMedia>>, TError = ErrorType<ErrorResponse | ErrorResponse | ErrorResponse>>(
+ params: GetApiSyncPullMediaParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiSyncPullMedia>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary メディアファイルをダウンロード
+ */
+
+export function useGetApiSyncPullMedia<TData = Awaited<ReturnType<typeof getApiSyncPullMedia>>, TError = ErrorType<ErrorResponse | ErrorResponse | ErrorResponse>>(
+ params: GetApiSyncPullMediaParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getApiSyncPullMedia>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetApiSyncPullMediaQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
 /**
  * ローカルR2の未同期メディアを本番R2に同期します。
  * @summary メディア同期を実行

@@ -246,7 +246,6 @@ class SyncService {
 		await this.syncPendingOperations();
 		// オンライン復帰時にDB同期も試行
 		await this.autoSyncOnOnline();
-		await this.syncPullFromProduction();
 	}
 
 	// Handle offline event
@@ -427,7 +426,7 @@ class SyncService {
 
 			if (result.success) {
 				console.log(
-					`[SyncService] ✅ 差分Pull完了: posts=${result.postsPulled}, comments=${result.commentsPulled}, tracks=${result.locationTracksPulled}, media=${result.mediaPulled}`,
+					`[SyncService] ✅ 差分Pull完了: posts=${result.postsPulled}, comments=${result.commentsPulled}, tracks=${result.locationTracksPulled}, media=${result.mediaPulled}, mediaSynced=${result.mediaSynced}${result.mediaFailed > 0 ? `, mediaFailed=${result.mediaFailed}` : ""}`,
 				);
 			} else {
 				console.warn("[SyncService] ⚠️ 差分Pull失敗:", result.error);
