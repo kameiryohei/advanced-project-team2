@@ -12,9 +12,31 @@ import {
 	videoRepository,
 } from "./repositories";
 import type { ShelterPosts } from "./repositories/shelterRepository";
-import type { SyncReceiveData } from "./repositories/syncRepository";
+import type {
+	SyncPullData,
+	SyncReceiveData,
+} from "./repositories/syncRepository";
 
 const app = new Hono<{ Bindings: Bindings }>();
+
+const parseShelterId = (value?: string | null): number | null => {
+	if (!value) {
+		return null;
+	}
+	const parsed = Number.parseInt(value, 10);
+	return Number.isNaN(parsed) ? null : parsed;
+};
+
+const resolveShelterId = (
+	value: string | undefined,
+	env: Bindings,
+): number | null => {
+	const fromRequest = parseShelterId(value);
+	if (fromRequest !== null) {
+		return fromRequest;
+	}
+	return parseShelterId(env.DEFAULT_SHELTER_ID);
+};
 
 // CORS設定を含むミドルウェア
 app.use("*", (c, next) => {
@@ -894,6 +916,180 @@ app.post("/api/sync/execute", async (c) => {
 			console.error("スタックトレース:", error.stack);
 		}
 		const message = error instanceof Error ? error.message : "Unknown error";
+		return c.json({ error: message }, 500);
+	}
+});
+
+// 差分Pullデータを取得（本番側で使用）
+app.get("/api/sync/pull", async (c) => {
+	const db = dbConnect(c.env);
+	const since = c.req.query("since");
+	const shelterId = resolveShelterId(c.req.query("shelterId"), c.env);
+
+	if (!shelterId) {
+		return c.json({ error: "shelterId is required" }, 400);
+	}
+
+	try {
+		const [posts, comments, locationTracks, media] = await Promise.all([
+			syncRepository.syncRepository.fetchPostsForPull(db, shelterId, since),
+			syncRepository.syncRepository.fetchCommentsForPull(db, shelterId, since),
+			syncRepository.syncRepository.fetchLocationTracksForPull(
+				db,
+				shelterId,
+				since,
+			),
+			syncRepository.syncRepository.fetchMediaForPull(db, shelterId, since),
+		]);
+
+		const response: paths["/api/sync/pull"]["get"]["responses"]["200"]["content"]["application/json"] =
+			{
+				serverTime: new Date().toISOString(),
+				posts,
+				comments,
+				locationTracks,
+				media,
+			};
+
+		return c.json(response);
+	} catch (error) {
+		console.error("Failed to pull sync data", error);
+		const message = error instanceof Error ? error.message : "Unknown error";
+		return c.json({ error: message }, 500);
+	}
+});
+
+// 差分Pullを実行（ローカル → 本番から取得して反映）
+app.post("/api/sync/pull/execute", async (c) => {
+	const db = dbConnect(c.env);
+	let logId: number | null = null;
+
+	try {
+		const reqBody = await c.req.json<{
+			targetUrl: string;
+			shelterId?: number;
+		}>();
+		const targetUrl = reqBody.targetUrl;
+		const shelterId = reqBody.shelterId ?? resolveShelterId(undefined, c.env);
+
+		if (!targetUrl) {
+			return c.json({ error: "targetUrl is required" }, 400);
+		}
+		if (!shelterId) {
+			return c.json({ error: "shelterId is required" }, 400);
+		}
+
+		logId = await syncRepository.syncRepository.createSyncLog(
+			db,
+			"pull",
+			targetUrl,
+			shelterId,
+		);
+
+		const scopeKey = `shelter:${shelterId}`;
+		const lastPulledAt = await syncRepository.syncRepository.getLastPulledAt(
+			db,
+			scopeKey,
+		);
+
+		const queryParams = new URLSearchParams({ shelterId: String(shelterId) });
+		if (lastPulledAt) {
+			queryParams.set("since", lastPulledAt);
+		}
+
+		let response: Response;
+		try {
+			response = await fetch(`${targetUrl}/api/sync/pull?${queryParams}`);
+		} catch (fetchError) {
+			const fetchMessage =
+				fetchError instanceof Error ? fetchError.message : String(fetchError);
+			await syncRepository.syncRepository.failSyncLog(
+				db,
+				logId,
+				`fetch失敗: ${fetchMessage}`,
+			);
+			return c.json({ error: `本番APIへの接続エラー: ${fetchMessage}` }, 500);
+		}
+
+		if (!response.ok) {
+			const errorText = await response.text();
+			await syncRepository.syncRepository.failSyncLog(
+				db,
+				logId,
+				`本番API応答エラー: ${response.status} ${errorText}`,
+			);
+			return c.json(
+				{ error: `同期先APIエラー: ${response.status}`, details: errorText },
+				500,
+			);
+		}
+
+		const pullData =
+			await response.json<
+				paths["/api/sync/pull"]["get"]["responses"]["200"]["content"]["application/json"]
+			>();
+
+		const normalizedPullData: SyncPullData = {
+			serverTime: pullData.serverTime,
+			posts: pullData.posts.map((post) => ({
+				...post,
+				content: post.content ?? null,
+				status: post.status ?? null,
+			})),
+			comments: pullData.comments.map((comment) => ({
+				...comment,
+			})),
+			locationTracks: pullData.locationTracks.map((track) => ({
+				...track,
+			})),
+			media: pullData.media.map((media) => ({
+				...media,
+				file_name: media.file_name ?? null,
+				deleted_at: media.deleted_at ?? null,
+			})),
+		};
+
+		const applyResult = await syncRepository.syncRepository.applyPulledData(
+			db,
+			normalizedPullData,
+		);
+
+		await syncRepository.syncRepository.setLastPulledAt(
+			db,
+			scopeKey,
+			pullData.serverTime,
+		);
+
+		await syncRepository.syncRepository.completeSyncLog(
+			db,
+			logId,
+			applyResult.postsApplied,
+			applyResult.commentsApplied,
+			applyResult.locationTracksApplied,
+			applyResult.mediaApplied,
+		);
+
+		const result: paths["/api/sync/pull/execute"]["post"]["responses"]["200"]["content"]["application/json"] =
+			{
+				success: true,
+				postsPulled: applyResult.postsApplied,
+				commentsPulled: applyResult.commentsApplied,
+				locationTracksPulled: applyResult.locationTracksApplied,
+				mediaPulled: applyResult.mediaApplied,
+				lastPulledAt: pullData.serverTime,
+			};
+
+		return c.json(result);
+	} catch (error) {
+		console.error("Sync pull execution failed", error);
+		const message = error instanceof Error ? error.message : "Unknown error";
+		if (logId !== null) {
+			try {
+				await syncRepository.syncRepository.failSyncLog(db, logId, message);
+			} catch (logError) {
+				console.error("Failed to update sync log for pull failure", logError);
+			}
+		}
 		return c.json({ error: message }, 500);
 	}
 });
