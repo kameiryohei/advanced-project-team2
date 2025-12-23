@@ -15,9 +15,94 @@ import type { ShelterPosts } from "./repositories/shelterRepository";
 import type {
 	SyncPullData,
 	SyncReceiveData,
+	UnsyncedMedia,
 } from "./repositories/syncRepository";
 
 const app = new Hono<{ Bindings: Bindings }>();
+
+/**
+ * メディアファイルを本番R2からローカルR2に同期
+ */
+async function syncMediaFiles(
+	localBucket: R2Bucket,
+	productionApiUrl: string,
+	mediaList: UnsyncedMedia[],
+): Promise<{ synced: number; failed: number }> {
+	let synced = 0;
+	let failed = 0;
+
+	// 既にローカルR2に存在するファイルをフィルタリング
+	const mediaToPull: UnsyncedMedia[] = [];
+	for (const media of mediaList) {
+		const exists = await localBucket.head(media.file_path);
+		if (!exists) {
+			mediaToPull.push(media);
+		}
+	}
+
+	console.log(
+		`📦 メディア同期対象: ${mediaToPull.length}件 / 全体${mediaList.length}件`,
+	);
+
+	if (mediaToPull.length === 0) {
+		return { synced: 0, failed: 0 };
+	}
+
+	// 並列数を制限（3並列）
+	const CONCURRENCY = 3;
+	for (let i = 0; i < mediaToPull.length; i += CONCURRENCY) {
+		const batch = mediaToPull.slice(i, i + CONCURRENCY);
+
+		const results = await Promise.allSettled(
+			batch.map((media) =>
+				downloadAndUploadMedia(localBucket, productionApiUrl, media),
+			),
+		);
+
+		for (const result of results) {
+			if (result.status === "fulfilled") {
+				synced++;
+			} else {
+				failed++;
+				console.error("メディア同期エラー:", result.reason);
+			}
+		}
+	}
+
+	return { synced, failed };
+}
+
+/**
+ * 単一メディアファイルをダウンロードしてアップロード
+ */
+async function downloadAndUploadMedia(
+	localBucket: R2Bucket,
+	productionApiUrl: string,
+	media: UnsyncedMedia,
+): Promise<void> {
+	// 本番R2からダウンロード
+	const response = await fetch(
+		`${productionApiUrl}/api/sync/pull/media?filePath=${encodeURIComponent(media.file_path)}`,
+	);
+
+	if (!response.ok) {
+		throw new Error(
+			`Failed to download ${media.file_path}: ${response.status}`,
+		);
+	}
+
+	const body = await response.arrayBuffer();
+	const contentType = response.headers.get("Content-Type") || media.media_type;
+
+	// ローカルR2にアップロード
+	await localBucket.put(media.file_path, body, {
+		httpMetadata: {
+			contentType,
+		},
+	});
+
+	console.log(`✅ メディア同期完了: ${media.file_path}`);
+}
 
 const parseShelterId = (value?: string | null): number | null => {
 	if (!value) {
@@ -1054,6 +1139,26 @@ app.post("/api/sync/pull/execute", async (c) => {
 			normalizedPullData,
 		);
 
+		// メディアファイルを本番R2からローカルR2に同期
+		let mediaSynced = 0;
+		let mediaFailed = 0;
+
+		if (normalizedPullData.media.length > 0) {
+			console.log(
+				`📦 メディアファイル同期開始: ${normalizedPullData.media.length}件`,
+			);
+			const mediaResult = await syncMediaFiles(
+				c.env.ASSET_BUCKET,
+				targetUrl,
+				normalizedPullData.media,
+			);
+			mediaSynced = mediaResult.synced;
+			mediaFailed = mediaResult.failed;
+			console.log(
+				`📦 メディアファイル同期完了: 成功=${mediaSynced}, 失敗=${mediaFailed}`,
+			);
+		}
+
 		await syncRepository.syncRepository.setLastPulledAt(
 			db,
 			scopeKey,
@@ -1066,7 +1171,7 @@ app.post("/api/sync/pull/execute", async (c) => {
 			applyResult.postsApplied,
 			applyResult.commentsApplied,
 			applyResult.locationTracksApplied,
-			applyResult.mediaApplied,
+			mediaSynced,
 		);
 
 		const result: paths["/api/sync/pull/execute"]["post"]["responses"]["200"]["content"]["application/json"] =
@@ -1076,6 +1181,8 @@ app.post("/api/sync/pull/execute", async (c) => {
 				commentsPulled: applyResult.commentsApplied,
 				locationTracksPulled: applyResult.locationTracksApplied,
 				mediaPulled: applyResult.mediaApplied,
+				mediaSynced,
+				mediaFailed,
 				lastPulledAt: pullData.serverTime,
 			};
 
@@ -1091,6 +1198,47 @@ app.post("/api/sync/pull/execute", async (c) => {
 			}
 		}
 		return c.json({ error: message }, 500);
+	}
+});
+
+// 差分Pull用: メディアファイルをダウンロード（本番側で使用）
+app.get("/api/sync/pull/media", async (c) => {
+	const filePath = c.req.query("filePath");
+
+	if (!filePath) {
+		const errorResponse: components["schemas"]["ErrorResponse"] = {
+			error: "filePath is required",
+		};
+		return c.json(errorResponse, 400);
+	}
+
+	const bucket = c.env.ASSET_BUCKET;
+
+	try {
+		const object = await bucket.get(filePath);
+
+		if (!object) {
+			const errorResponse: components["schemas"]["ErrorResponse"] = {
+				error: "Media not found in R2",
+			};
+			return c.json(errorResponse, 404);
+		}
+
+		const headers = new Headers();
+		headers.set(
+			"Content-Type",
+			object.httpMetadata?.contentType || "application/octet-stream",
+		);
+		headers.set("Content-Length", String(object.size));
+
+		return new Response(object.body, { headers });
+	} catch (error) {
+		console.error("Failed to get media from R2", error);
+		const message = error instanceof Error ? error.message : "Unknown error";
+		const errorResponse: components["schemas"]["ErrorResponse"] = {
+			error: message,
+		};
+		return c.json(errorResponse, 500);
 	}
 });
 
