@@ -1,8 +1,13 @@
 import { axiosInstance } from "@/api/axios-instance";
-import { getApiSyncStatus, postApiSyncExecute } from "@/api/generated/team2API";
+import {
+	getApiSyncStatus,
+	postApiSyncExecute,
+	postApiSyncPullExecute,
+} from "@/api/generated/team2API";
 import type {
 	SyncStatusResponse,
 	SyncExecuteResponse,
+	SyncPullExecuteResponse,
 } from "@/api/generated/model";
 import { toast } from "sonner";
 
@@ -31,6 +36,9 @@ export type DbSyncStats = SyncStatusResponse;
 // DB同期結果型（Orval生成型を再エクスポート）
 export type DbSyncResult = SyncExecuteResponse;
 
+// DB差分Pull結果型（Orval生成型を再エクスポート）
+export type DbPullResult = SyncPullExecuteResponse;
+
 type MediaSyncResult = {
 	success: boolean;
 	total: number;
@@ -50,7 +58,10 @@ class SyncService {
 	private isOnline: boolean = navigator.onLine;
 	private syncInProgress = false;
 	private startupSyncTriggered = false;
+	private pullInProgress = false;
+	private pullIntervalId: number | null = null;
 	private readonly pendingOperationsKey = "pending_operations";
+	private readonly pullIntervalMs = 30 * 60 * 1000;
 
 	private setEnvironmentClass(): void {
 		if (typeof document === "undefined") {
@@ -71,6 +82,8 @@ class SyncService {
 
 		// Fire once on app startup in production
 		void this.triggerStartupSync();
+		this.setupPullScheduler();
+		void this.triggerStartupPull();
 	}
 
 	static getInstance(): SyncService {
@@ -233,6 +246,7 @@ class SyncService {
 		await this.syncPendingOperations();
 		// オンライン復帰時にDB同期も試行
 		await this.autoSyncOnOnline();
+		await this.syncPullFromProduction();
 	}
 
 	// Handle offline event
@@ -323,6 +337,49 @@ class SyncService {
 		}
 	}
 
+	private shouldEnablePull(): boolean {
+		// VITE_ENABLE_PULL_SYNC環境変数で明示的に制御
+		const enablePull = import.meta.env.VITE_ENABLE_PULL_SYNC;
+		if (enablePull === "true" || enablePull === "1") {
+			return true;
+		}
+		if (enablePull === "false" || enablePull === "0") {
+			return false;
+		}
+		// 未設定の場合はローカル環境のみ有効
+		return import.meta.env.VITE_NODE_ENV === "local";
+	}
+
+	private getDefaultShelterIdForPull(): number | null {
+		const rawShelterId = import.meta.env.VITE_DEFAULT_SHELTER_ID;
+		if (!rawShelterId) {
+			return null;
+		}
+		const shelterId = Number.parseInt(rawShelterId, 10);
+		return Number.isNaN(shelterId) ? null : shelterId;
+	}
+
+	private setupPullScheduler(): void {
+		if (!this.shouldEnablePull() || this.pullIntervalId !== null) {
+			return;
+		}
+		this.pullIntervalId = window.setInterval(() => {
+			if (this.isOnline) {
+				void this.syncPullFromProduction();
+			}
+		}, this.pullIntervalMs);
+	}
+
+	private async triggerStartupPull(): Promise<void> {
+		if (!this.shouldEnablePull()) {
+			return;
+		}
+		if (!navigator.onLine) {
+			return;
+		}
+		await this.syncPullFromProduction();
+	}
+
 	// Get current sync status
 	getSyncStatus(): {
 		isOnline: boolean;
@@ -347,6 +404,43 @@ class SyncService {
 	}
 
 	// ==================== DB同期機能 ====================
+
+	/**
+	 * 本番DBから差分をPullしてローカルへ反映
+	 */
+	async syncPullFromProduction(): Promise<DbPullResult | null> {
+		if (!this.shouldEnablePull() || this.pullInProgress) {
+			return null;
+		}
+		const productionApiUrl = import.meta.env.VITE_PRODUCTION_API_URL;
+		const shelterId = this.getDefaultShelterIdForPull();
+		if (!productionApiUrl || !shelterId) {
+			return null;
+		}
+
+		this.pullInProgress = true;
+		try {
+			const result = await postApiSyncPullExecute({
+				targetUrl: productionApiUrl,
+				shelterId,
+			});
+
+			if (result.success) {
+				console.log(
+					`[SyncService] ✅ 差分Pull完了: posts=${result.postsPulled}, comments=${result.commentsPulled}, tracks=${result.locationTracksPulled}, media=${result.mediaPulled}`,
+				);
+			} else {
+				console.warn("[SyncService] ⚠️ 差分Pull失敗:", result.error);
+			}
+
+			return result;
+		} catch (error) {
+			console.error("[SyncService] ❌ 差分Pullエラー:", error);
+			return null;
+		} finally {
+			this.pullInProgress = false;
+		}
+	}
 
 	/**
 	 * バックエンドDBの同期ステータスを取得
