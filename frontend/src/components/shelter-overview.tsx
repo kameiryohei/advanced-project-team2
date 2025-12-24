@@ -100,7 +100,7 @@ export function ShelterOverview({ onShelterSelect }: ShelterOverviewProps) {
 						<img
 							src="/Shel-Thred-logo.png"
 							alt="Shel-Thread Logo"
-							className="w-10 h-10 rounded-full"
+							className="w-12 h-12 rounded-full"
 						/>
 						Shel-Thread
 						<span className="text-sm sm:text-base text-muted-foreground font-normal">
